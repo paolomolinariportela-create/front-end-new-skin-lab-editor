@@ -1,79 +1,26 @@
-import React, { useEffect, useState } from "react";
-// Importação centralizada para evitar erros de diretório
-import { ErrorBoundary, connect, iAmReady, getStoreInfo, getSessionToken } from "@tiendanube/nexo";
-import nexo from "./nexoClient";
+import React from "react";
 
-const App: React.FC = () => {
-  const [isConnect, setIsConnect] = useState(false);
-  const [store, setStore] = useState<any>(null);
-
-  useEffect(() => {
-    // 1. Tenta conectar ao Admin (Padrão Nexo)
-    connect(nexo)
-      .then(async () => {
-        setIsConnect(true);
-        iAmReady(nexo); // 2. Avisa que está pronto
-        
-        // 3. Busca info da loja
-        const storeInfo = await getStoreInfo(nexo);
-        setStore(storeInfo);
-      })
-      .catch(() => {
-        // Se falhar (como no localhost), liberamos a tela para você ver o design
-        setIsConnect(true); 
-      });
-  }, []);
-
+const App = () => {
   return (
-    <ErrorBoundary nexo={nexo}>
-      <div style={{ 
-        padding: '40px', 
-        fontFamily: 'sans-serif', 
-        background: '#f4f4f4', 
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <div style={{ 
-          background: 'white', 
-          padding: '30px', 
-          borderRadius: '12px', 
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          textAlign: 'center',
-          maxWidth: '400px'
-        }}>
-          <h1 style={{ color: '#007bff' }}>🤴 King Urban</h1>
-          <p>Editor de Lotes Profissional</p>
-          <hr style={{ border: '0.5px solid #eee', margin: '20px 0' }} />
-          
-          {store ? (
-            <p>Conectado à loja: <strong>{store.name}</strong></p>
-          ) : (
-            <p style={{ color: '#888' }}>Modo de Visualização (Offline)</p>
-          )}
-
-          <button 
-            onClick={async () => {
-              const token = await getSessionToken(nexo);
-              alert("Token JWT obtido! Pronto para falar com o Python.");
-              console.log("Token:", token);
-            }}
-            style={{ 
-              backgroundColor: '#007bff', 
-              color: 'white', 
-              border: 'none', 
-              padding: '12px 20px', 
-              borderRadius: '6px', 
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Sincronizar com Servidor
-          </button>
-        </div>
-      </div>
-    </ErrorBoundary>
+    <div style={{ 
+      height: "100vh", 
+      display: "flex", 
+      flexDirection: "column",
+      alignItems: "center", 
+      justifyContent: "center",
+      background: "#007bff",
+      color: "white",
+      fontFamily: "sans-serif"
+    }}>
+      <h1>🤴 King Urban - TESTE DE RENDERIZAÇÃO</h1>
+      <p>Se você está vendo esta tela azul, o seu React está funcionando!</p>
+      <button 
+        onClick={() => alert("React está vivo!")}
+        style={{ padding: "10px 20px", cursor: "pointer", marginTop: "20px" }}
+      >
+        CLIQUE AQUI
+      </button>
+    </div>
   );
 };
 
