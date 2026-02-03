@@ -1,71 +1,116 @@
 import React, { useState } from 'react';
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState('products');
+  const [view, setView] = useState('dashboard'); // dashboard, products, billing, settings
+
+  // Função para renderizar o conteúdo dinâmico
+  const renderContent = () => {
+    switch (view) {
+      case 'dashboard':
+        return (
+          <div style={contentFadeIn}>
+            <h1 style={titleStyle}>Olá, King Urban 🤴</h1>
+            <p style={subtitleStyle}>O que vamos otimizar na sua loja hoje?</p>
+            <div style={statsGrid}>
+              <div style={statCard}><h3>1.240</h3><p>Produtos Ativos</p></div>
+              <div style={statCard}><h3>15</h3><p>Sincronizações hoje</p></div>
+              <div style={statCard}><h3>R$ 45k</h3><p>Valor em estoque</p></div>
+            </div>
+          </div>
+        );
+      case 'billing':
+        return (
+          <div style={contentFadeIn}>
+            <h1 style={titleStyle}>Assinatura e Planos</h1>
+            <div style={planCard}>
+              <h3>Plano Pro - R$ 89,90/mês</h3>
+              <p>Status: <span style={{color: '#34a853'}}>Ativo</span></p>
+              <button style={actionButton}>Gerenciar Pagamento</button>
+            </div>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div style={contentFadeIn}>
+            <h1 style={titleStyle}>Configurações da Conta</h1>
+            <div style={formGroup}>
+              <label>Link da Loja</label>
+              <input style={inputStyle} defaultValue="kingurban.nuvemshop.com.br" />
+              <button style={actionButton}>Salvar Alterações</button>
+            </div>
+          </div>
+        );
+      default:
+        return <div>Em breve...</div>;
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'Inter, sans-serif' }}>
-      {/* Sidebar - Menu Lateral */}
-      <div style={{ width: '260px', backgroundColor: '#ffffff', borderRight: '1px solid #e0e0e0', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '30px', color: '#1a73e8' }}>King Urban 🤴</h2>
-        
-        <nav style={{ flex: 1 }}>
-          <button onClick={() => setActiveTab('products')} style={navButtonStyle(activeTab === 'products')}>📦 Produtos</button>
-          <button onClick={() => setActiveTab('stock')} style={navButtonStyle(activeTab === 'stock')}>📉 Estoque</button>
-          <button onClick={() => setActiveTab('ia')} style={navButtonStyle(activeTab === 'ia')}>✨ IA Assistant</button>
-        </nav>
-
-        <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
-          <button style={navButtonStyle(false)}>⚙️ Configurações</button>
-          <button style={{ ...navButtonStyle(false), color: '#d93025' }}>🚪 Sair</button>
+    <div style={containerStyle}>
+      {/* SIDEBAR */}
+      <aside style={sidebarStyle}>
+        <div>
+          <h2 style={logoStyle}>NewSkin Lab</h2>
+          <nav>
+            <button onClick={() => setView('dashboard')} style={navItem(view === 'dashboard')}>🏠 Início</button>
+            <button onClick={() => setView('products')} style={navItem(view === 'products')}>📦 Editor de Lote</button>
+            <button onClick={() => setView('billing')} style={navItem(view === 'billing')}>💳 Assinatura</button>
+            <button onClick={() => setView('settings')} style={navItem(view === 'settings')}>⚙️ Configurações</button>
+          </nav>
         </div>
-      </div>
+        <div style={userSection}>
+          <div style={avatarStyle}>KU</div>
+          <span>King Urban</span>
+        </div>
+      </aside>
 
-      {/* Main Content - Área Central */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '40px' }}>
-        <div style={{ flex: 1, backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', padding: '20px', overflowY: 'auto' }}>
-          {activeTab === 'products' && (
-            <div>
-              <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Editor de Produtos</h1>
-              <p>Aqui aparecerá a sua lista de produtos da Nuvemshop...</p>
-              {/* Tabela de produtos entrará aqui */}
-            </div>
-          )}
-          {activeTab === 'ia' && (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#5f6368' }}>
-              <h2>Como posso ajudar a editar sua loja hoje?</h2>
-              <p>Digite um comando abaixo para fazer alterações em lote.</p>
-            </div>
-          )}
+      {/* MAIN AREA */}
+      <main style={mainStyle}>
+        <div style={contentArea}>
+          {renderContent()}
         </div>
 
-        {/* Input Estilo Gemini (Barra de Comando) */}
-        <div style={{ marginTop: '20px', position: 'relative' }}>
-          <input 
-            type="text" 
-            placeholder="Ex: Aumentar preço de todos os bonés em R$ 10..."
-            style={{ width: '100%', padding: '18px 25px', borderRadius: '30px', border: '1px solid #dfe1e5', fontSize: '16px', outline: 'none', boxShadow: '0 1px 6px rgba(32,33,36,0.28)' }}
-          />
-          <button style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: '#1a73e8', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '20px', cursor: 'pointer' }}>Enviar</button>
+        {/* BARRA DE COMANDO ESTILO GEMINI */}
+        <div style={commandBarContainer}>
+          <div style={commandBar}>
+            <input 
+              type="text" 
+              placeholder="Digite um comando para a IA (ex: 'Baixar estoque em 5 unidades')" 
+              style={commandInput} 
+            />
+            <button style={sendButton}>🚀</button>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
 
-const navButtonStyle = (active: boolean) => ({
-  width: '100%',
-  textAlign: 'left' as const,
-  padding: '12px 15px',
-  marginBottom: '5px',
-  borderRadius: '8px',
-  border: 'none',
-  backgroundColor: active ? '#e8f0fe' : 'transparent',
-  color: active ? '#1a73e8' : '#3c4043',
-  fontSize: '15px',
-  fontWeight: active ? '600' : '400',
-  cursor: 'pointer',
-  transition: '0.2s'
+// --- ESTILOS (CSS-in-JS) ---
+
+const containerStyle: React.CSSProperties = { display: 'flex', height: '100vh', backgroundColor: '#F0F2F5', color: '#1F1F1F' };
+const sidebarStyle: React.CSSProperties = { width: '280px', backgroundColor: '#FFFFFF', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '1px solid #E0E0E0' };
+const logoStyle: React.CSSProperties = { fontSize: '22px', fontWeight: 'bold', marginBottom: '40px', color: '#1A73E8' };
+const navItem = (active: boolean): React.CSSProperties => ({
+  width: '100%', textAlign: 'left', padding: '14px 18px', marginBottom: '8px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+  backgroundColor: active ? '#E8F0FE' : 'transparent', color: active ? '#1A73E8' : '#444746', fontWeight: active ? '600' : '500', transition: '0.3s'
 });
+const mainStyle: React.CSSProperties = { flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' };
+const contentArea: React.CSSProperties = { flex: 1, padding: '60px 80px', overflowY: 'auto' };
+const titleStyle: React.CSSProperties = { fontSize: '32px', marginBottom: '8px', fontWeight: '500' };
+const subtitleStyle: React.CSSProperties = { fontSize: '18px', color: '#5F6368', marginBottom: '40px' };
+const statsGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' };
+const statCard: React.CSSProperties = { backgroundColor: '#FFF', padding: '24px', borderRadius: '16px', border: '1px solid #E0E0E0' };
+const commandBarContainer: React.CSSProperties = { padding: '20px 80px 40px 80px' };
+const commandBar: React.CSSProperties = { display: 'flex', backgroundColor: '#FFF', borderRadius: '32px', padding: '8px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', border: '1px solid #E0E0E0' };
+const commandInput: React.CSSProperties = { flex: 1, border: 'none', padding: '12px', outline: 'none', fontSize: '16px' };
+const sendButton: React.CSSProperties = { backgroundColor: '#1A73E8', color: '#FFF', border: 'none', padding: '10px 20px', borderRadius: '24px', cursor: 'pointer' };
+const contentFadeIn: React.CSSProperties = { animation: 'fadeIn 0.5s ease' };
+const userSection: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '20px', borderTop: '1px solid #EEE' };
+const avatarStyle: React.CSSProperties = { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#1A73E8', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' };
+const planCard: React.CSSProperties = { backgroundColor: '#FFF', padding: '30px', borderRadius: '20px', border: '2px solid #1A73E8' };
+const actionButton: React.CSSProperties = { marginTop: '20px', padding: '12px 24px', backgroundColor: '#1A73E8', color: '#FFF', border: 'none', borderRadius: '8px', cursor: 'pointer' };
+const formGroup: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' };
+const inputStyle: React.CSSProperties = { padding: '12px', borderRadius: '8px', border: '1px solid #CCC' };
 
 export default App;
