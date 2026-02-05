@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function NewSkinApp() {
-  // Estados Simulados (No futuro virão da sua API)
+  // Estados Simulados
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
-  const [totalProducts, setTotalProducts] = useState(1250);
+  const totalProducts = 1250; // Removido o set pois não usamos ainda
   const [messages, setMessages] = useState([
     { role: 'ai', text: 'Olá! Já estou mapeando sua loja. Enquanto isso, você já pode me dar ordens ou explorar as ferramentas abaixo.' }
   ]);
   const [inputValue, setInputValue] = useState('');
 
-  // Simulação de progresso de sincronização
+  // Simulação de progresso
   useEffect(() => {
     if (syncProgress < 100) {
       const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 100);
@@ -39,7 +39,7 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif', backgroundColor: '#f3f4f6' }}>
       
-      {/* SIDEBAR ESTILO GEMINI/DASHBOARD */}
+      {/* SIDEBAR */}
       <aside style={{ width: '280px', backgroundColor: '#fff', borderRight: '1px solid #e5e7eb', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
           <h2 style={{ color: '#2563eb', fontWeight: '800', fontSize: '22px', marginBottom: '30px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
@@ -51,7 +51,6 @@ export default function NewSkinApp() {
             <div style={{ padding: '12px', color: '#64748b', cursor: 'pointer' }}>⚙️ Configurações</div>
           </nav>
 
-          {/* STATUS DA SINCRONIZAÇÃO */}
           <div style={{ marginTop: '30px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>SINCRONIA</span>
@@ -66,8 +65,7 @@ export default function NewSkinApp() {
           </div>
         </div>
 
-        {/* DADOS DA LOJA E PLANO (RODAPÉ DA SIDEBAR) */}
-        <div style={{ borderTop: '1px solid #e5e7eb', pt: '20px' }}>
+        <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '10px 0' }}>
             <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
             <div>
@@ -88,8 +86,6 @@ export default function NewSkinApp() {
 
       {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        
-        {/* CHAT LOG */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', maxWidth: '750px' }}>
             {messages.map((m, i) => (
@@ -114,7 +110,6 @@ export default function NewSkinApp() {
         {/* FOOTER */}
         <div style={{ padding: '20px 40px 40px 40px' }}>
           <div style={{ maxWidth: '750px', margin: '0 auto' }}>
-            
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
               {actions.map(a => (
                 <button 
@@ -137,13 +132,4 @@ export default function NewSkinApp() {
               />
               <button 
                 onClick={() => handleSend(inputValue)}
-                style={{ position: 'absolute', right: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' }}>
-                Enviar
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+                style={{ position: 'absolute', right: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px 25
