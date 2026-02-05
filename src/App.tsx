@@ -13,10 +13,13 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // Estado para a Lista de Produtos
+  // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para rastrear alterações não salvas (Opcional, para UX)
+  const [hasChanges, setHasChanges] = useState(false);
 
   const [storeStats, setStoreStats] = useState({
       name: 'Carregando...',
@@ -98,26 +101,36 @@ export default function NewSkinApp() {
   }, [storeId, isSyncing]);
 
   // ==========================================
-  // 3. FUNÇÕES DE INTERAÇÃO (NOVO)
+  // 3. FUNÇÕES DE EDIÇÃO (EXCEL MODE)
   // ==========================================
   
-  // Função que simula a edição ao clicar na variante
-  const handleEditVariant = (productName: string, variant: any) => {
-      // Monta o nome da variante (Ex: "G / Azul")
-      const variantName = variant.values.map((v:any) => v.pt).join(' / ') || 'Padrão';
-      
-      // Abre um prompt simples (depois podemos fazer um modal bonito)
-      const newPrice = window.prompt(
-          `Editar Variante: ${productName} - ${variantName}\n\nPreço Atual: R$ ${variant.price}\nEstoque Atual: ${variant.stock}\n\nDigite o novo preço para testar (Ex: 99.90):`, 
-          variant.price
+  // Atualiza o estado local quando o usuário digita na tabela
+  const handleInputChange = (id: string, field: string, value: any) => {
+      setHasChanges(true);
+      setProductsList(prevList => 
+          prevList.map(p => p.id === id ? { ...p, [field]: value } : p)
       );
+  };
 
+  // Edição rápida de variante (Prompt)
+  const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
+      const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
       if (newPrice) {
-          alert(`📝 Simulação: Preço da variante "${variantName}" alterado para R$ ${newPrice}.\n(Na próxima etapa conectaremos isso ao backend para salvar de verdade!)`);
-          // Aqui futuramente chamaremos fetch(PUT /products/variant...)
+          setHasChanges(true);
+          setProductsList(prevList => prevList.map(p => {
+              if (p.id === productId) {
+                  const updatedVariants = [...p.variants_json];
+                  updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], price: parseFloat(newPrice) };
+                  return { ...p, variants_json: updatedVariants };
+              }
+              return p;
+          }));
       }
   };
 
+  // ==========================================
+  // 4. CHAT
+  // ==========================================
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
@@ -159,49 +172,20 @@ export default function NewSkinApp() {
     }
   };
 
-  // Função auxiliar para renderizar variantes com SCROLL HORIZONTAL
   const renderVariants = (product: any) => {
       const jsonVariants = product.variants_json;
-      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666'}}>Padrão</span>;
+      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666', fontSize: '11px'}}>Padrão</span>;
 
       return (
-          <div style={{ 
-              display: 'flex', 
-              gap: '8px', 
-              overflowX: 'auto', // <--- MÁGICA DO SCROLL
-              maxWidth: '350px', // Limita largura para forçar scroll se tiver muitos
-              paddingBottom: '5px',
-              whiteSpace: 'nowrap'
-          }}>
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
               {jsonVariants.map((v: any, i: number) => {
-                  // Monta o nome (Ex: "G / Azul")
                   const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
-                  
                   return (
-                      <div 
-                        key={i} 
-                        onClick={() => handleEditVariant(product.name, v)} // <--- CLIQUE PARA EDITAR
-                        style={{ 
-                            fontSize: '11px', 
-                            background: '#333', 
-                            padding: '4px 8px', 
-                            borderRadius: '6px', 
-                            color: '#E3E3E3',
-                            border: '1px solid #444',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            minWidth: '60px',
-                            transition: 'background 0.2s'
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#444'}
-                        onMouseOut={(e) => e.currentTarget.style.background = '#333'}
-                        title="Clique para editar esta variante"
-                      >
-                          <span style={{ fontWeight: 'bold', marginBottom: '2px' }}>{name}</span>
-                          <span style={{ color: '#34A853' }}>R$ {v.price || product.price}</span>
-                          <span style={{ color: '#888', fontSize: '9px' }}>Estoque: {v.stock || 0}</span>
+                      <div key={i} onClick={() => handleEditVariant(product.id, i, v.price || product.price)} 
+                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', cursor: 'pointer', minWidth: '60px', textAlign: 'center' }}
+                        title="Clique para editar preço desta variante">
+                          <div style={{ fontWeight: 'bold' }}>{name}</div>
+                          <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
                       </div>
                   );
               })}
@@ -210,7 +194,7 @@ export default function NewSkinApp() {
   };
 
   // ==========================================
-  // 4. RENDERIZAÇÃO
+  // 5. RENDERIZAÇÃO
   // ==========================================
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
@@ -257,7 +241,6 @@ export default function NewSkinApp() {
                             )}
                         </div>
                         ))}
-                        {isLoading && <div style={{ marginLeft: '20px', color: '#888' }}>Pensando...</div>}
                     </div>
                 </div>
                 <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -269,46 +252,107 @@ export default function NewSkinApp() {
             </>
         )}
 
-        {/* --- ABA PRODUTOS (TABELA COMPLETA COM SCROLL) --- */}
+        {/* --- ABA PRODUTOS (EXCEL VIEW COMPLETA) --- */}
         {activeTab === 'products' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px', backgroundColor: '#131314' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h1 style={{ fontSize: '22px', fontWeight: 'bold' }}>Gerenciador de Catálogo</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo (Modo Edição)</h1>
+                        {hasChanges && <button onClick={() => alert("Em breve: Salvar no Banco")} style={{ background: '#34A853', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>💾 Salvar Alterações</button>}
+                    </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <input 
                             placeholder="🔍 Buscar produto..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && fetchProducts(storeId!, searchTerm)}
-                            style={{ padding: '10px 15px', borderRadius: '8px', background: '#282A2C', border: '1px solid #444746', color: 'white', outline: 'none', width: '300px' }}
+                            style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white', outline: 'none', width: '250px' }}
                         />
-                        <button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 20px', borderRadius: '8px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}>Filtrar</button>
+                        <button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}>Filtrar</button>
                     </div>
                 </div>
 
                 <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
                             <tr>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>IMAGEM</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>PRODUTO</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>SKU BASE</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746', width: '40%' }}>VARIANTES (Role para o lado ➡️)</th>
+                                <th style={{ padding: '12px', width: '60px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>IMG</th>
+                                <th style={{ padding: '12px', minWidth: '250px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>NOME (EDITÁVEL)</th>
+                                <th style={{ padding: '12px', width: '120px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>SKU</th>
+                                <th style={{ padding: '12px', minWidth: '300px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>VARIANTES (CLIQUE P/ PREÇO)</th>
+                                <th style={{ padding: '12px', width: '100px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>PREÇO</th>
+                                <th style={{ padding: '12px', width: '100px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>PROMO</th>
+                                <th style={{ padding: '12px', width: '80px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>ESTOQUE</th>
+                                <th style={{ padding: '12px', width: '80px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>PESO (kg)</th>
+                                <th style={{ padding: '12px', width: '80px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>LARG</th>
+                                <th style={{ padding: '12px', width: '80px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>ALT</th>
+                                <th style={{ padding: '12px', width: '80px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>PROF</th>
+                                <th style={{ padding: '12px', minWidth: '300px', color: '#aaa', fontSize: '11px', borderBottom: '1px solid #444' }}>DESCRIÇÃO (HTML)</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loadingProducts ? (
-                                <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#888' }}>Carregando catálogo...</td></tr>
+                                <tr><td colSpan={12} style={{ padding: '40px', textAlign: 'center', color: '#888' }}>Carregando catálogo...</td></tr>
                             ) : productsList.map((p) => (
                                 <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
-                                    <td style={{ padding: '12px 15px' }}>
-                                        <img src={p.image_url || 'https://via.placeholder.com/40'} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', backgroundColor: '#333' }} />
+                                    <td style={{ padding: '10px' }}>
+                                        <img src={p.image_url || 'https://via.placeholder.com/40'} style={{ width: '35px', height: '35px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #333' }} />
                                     </td>
-                                    <td style={{ padding: '12px 15px', fontWeight: '500', color: '#E3E3E3' }}>{p.name}</td>
-                                    <td style={{ padding: '12px 15px', color: '#888', fontSize: '13px' }}>{p.sku || '-'}</td>
-                                    <td style={{ padding: '12px 15px' }}>
-                                        {/* RENDERIZA LISTA HORIZONTAL DE VARIANTES */}
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            value={p.name || ''} 
+                                            onChange={(e) => handleInputChange(p.id, 'name', e.target.value)}
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px', fontSize: '13px' }}
+                                        />
+                                    </td>
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            value={p.sku || ''} 
+                                            onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)}
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px', fontSize: '12px' }}
+                                        />
+                                    </td>
+                                    <td style={{ padding: '10px' }}>
                                         {renderVariants(p)}
+                                    </td>
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            type="number"
+                                            value={p.price || ''} 
+                                            onChange={(e) => handleInputChange(p.id, 'price', e.target.value)}
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px', fontSize: '13px' }}
+                                        />
+                                    </td>
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            type="number"
+                                            value={p.promotional_price || ''} 
+                                            onChange={(e) => handleInputChange(p.id, 'promotional_price', e.target.value)}
+                                            placeholder="-"
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#F44336', padding: '12px', fontSize: '13px' }}
+                                        />
+                                    </td>
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            type="number"
+                                            value={p.stock || 0} 
+                                            onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)}
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: p.stock > 0 ? '#A8C7FA' : '#666', padding: '12px', fontSize: '13px' }}
+                                        />
+                                    </td>
+                                    {/* Dimensões */}
+                                    <td style={{ padding: '0' }}><input type="number" value={p.weight || ''} onChange={(e) => handleInputChange(p.id, 'weight', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#aaa', padding: '12px', fontSize: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.width || ''} onChange={(e) => handleInputChange(p.id, 'width', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#aaa', padding: '12px', fontSize: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.height || ''} onChange={(e) => handleInputChange(p.id, 'height', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#aaa', padding: '12px', fontSize: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.depth || ''} onChange={(e) => handleInputChange(p.id, 'depth', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#aaa', padding: '12px', fontSize: '12px' }}/></td>
+                                    
+                                    <td style={{ padding: '0' }}>
+                                        <input 
+                                            value={p.description ? p.description.substring(0, 50) + '...' : ''} 
+                                            onChange={(e) => handleInputChange(p.id, 'description', e.target.value)}
+                                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px', fontSize: '11px', fontStyle: 'italic' }}
+                                            title="Descrição completa é HTML. Edição segura em breve."
+                                        />
                                     </td>
                                 </tr>
                             ))}
