@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 // Define o formato dos dados que vêm do Python
 interface Product {
