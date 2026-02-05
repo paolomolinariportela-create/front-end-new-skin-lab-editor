@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // ⚠️ CONFIRA SE O LINK ESTÁ CERTO (SEM BARRA NO FINAL)
-const BACKEND_URL = "https://seu-backend-python.up.railway.app"; 
+const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 export default function NewSkinApp() {
   // Estados
