@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-// ⚠️ IMPORTANTE: COLE O LINK DO SEU BACKEND AQUI (SEM A BARRA NO FINAL)
-const BACKEND_URL = "app.newskinlab.com.br"; 
+// ⚠️ COLE O LINK DO SEU BACKEND AQUI (SEM A BARRA NO FINAL)
+const BACKEND_URL = "https://app.newskinlab.com.br"; 
 
 export default function NewSkinApp() {
   // Estados
@@ -11,9 +11,9 @@ export default function NewSkinApp() {
     { role: 'ai', text: 'Olá! Sou a IA da King Urban. Conectada e pronta para receber comandos reais.' }
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Novo estado de carregamento
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Simulação de progresso (Mantivemos simulado por enquanto, a não ser que seu backend tenha rota de progresso)
+  // Simulação de progresso
   useEffect(() => {
     if (syncProgress < 100) {
       const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 80);
@@ -23,14 +23,7 @@ export default function NewSkinApp() {
     }
   }, [syncProgress]);
 
-  const actions = [
-    { title: "💰 Preços", cmd: "Aumentar preços em 10%...", color: "#34A853", icon: "💰" },
-    { title: "📝 Títulos", cmd: "Adicionar 'PROMO' nos títulos...", color: "#A142F4", icon: "📝" },
-    { title: "📦 Estoque", cmd: "Zerar produtos sem foto...", color: "#24C1E0", icon: "📦" },
-    { title: "🏷️ Tags", cmd: "Add tag 'Inverno'...", color: "#FA7B17", icon: "🏷️" },
-  ];
-
-  // Hextom Cards (Mantidos)
+  // Hextom Cards (Coluna Direita)
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
@@ -46,26 +39,22 @@ export default function NewSkinApp() {
     { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } 
   ];
 
-  // --- AQUI ESTÁ A MÁGICA DA CONEXÃO REAL ---
   const handleSend = async (text: string) => {
     if (!text) return;
 
-    // 1. Mostra a mensagem do usuário na hora
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
-    setIsLoading(true); // Ativa o "escrevendo..."
+    setIsLoading(true);
 
     try {
-      // 2. Envia para o Backend Python
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }) // Envia o texto
+        body: JSON.stringify({ message: text })
       });
 
       const data = await response.json();
 
-      // 3. Recebe a resposta REAL da IA
       if (data.response) {
         setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
       } else {
@@ -83,7 +72,7 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 10 }}>
         <div>
           <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '40px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
@@ -129,7 +118,7 @@ export default function NewSkinApp() {
         </div>
       </aside>
 
-      {/* CENTER CHAT */}
+      {/* CHAT CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', maxWidth: '700px' }}>
@@ -208,7 +197,7 @@ export default function NewSkinApp() {
         </div>
       </main>
 
-      {/* RIGHT COLUMN (HEXTOM) */}
+      {/* COLUNA DIREITA (CARDS HEXTOM) */}
       <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
         
