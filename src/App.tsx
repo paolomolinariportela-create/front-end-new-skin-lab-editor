@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// ⚠️ CONFIRA SE O LINK ESTÁ CERTO (SEM BARRA NO FINAL)
+// MANTIVE O SEU LINK CORRETO
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 export default function NewSkinApp() {
@@ -14,9 +14,8 @@ export default function NewSkinApp() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. AO ABRIR O SITE: PEGA O ID DA LOJA E DISPARA O SYNC
+  // 1. AO ABRIR O SITE: PEGA O ID DA LOJA E DISPARA O SYNC (MANTIDO IGUAL)
   useEffect(() => {
-    // Pega o ?store_id=123 da URL
     const params = new URLSearchParams(window.location.search);
     const id = params.get('store_id');
 
@@ -24,7 +23,7 @@ export default function NewSkinApp() {
       setStoreId(id);
       setMessages([{ role: 'ai', text: `Loja ${id} detectada! Iniciei a sincronização dos seus produtos em segundo plano. Pode me usar enquanto isso.` }]);
       
-      // Dispara o Sync no Backend (Fire and Forget)
+      // Dispara o Sync no Backend
       fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' })
         .then(res => console.log("Sync iniciado:", res.status))
         .catch(err => console.error("Erro no Sync:", err));
@@ -35,18 +34,47 @@ export default function NewSkinApp() {
     }
   }, []);
 
-  // 2. SIMULAÇÃO VISUAL DA BARRA (Para conforto do usuário enquanto o backend trabalha)
+  // 2. MONITORAMENTO REAL (SUBSTITUÍ O FAKE POR ESTE REAL)
   useEffect(() => {
-    if (isSyncing && storeId) {
-      if (syncProgress < 95) {
-        // Vai até 95% e espera
-        const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 150);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [syncProgress, isSyncing, storeId]);
+    // Só roda se tiver ID e estiver marcado como sincronizando
+    if (!storeId || !isSyncing) return;
 
-  // Hextom Cards (Mantidos)
+    const checkStatus = async () => {
+      try {
+        // Bate na rota de status que criamos
+        const res = await fetch(`${BACKEND_URL}/admin/status/${storeId}`);
+        const data = await res.json();
+        
+        console.log("Status atual:", data); // Para você ver no console
+
+        // Se o Backend disser que acabou:
+        if (data.ultimo_erro === "SYNC_CONCLUIDO") {
+            setSyncProgress(100);
+            setIsSyncing(false); // Para de verificar
+            
+            // Avisa o usuário que terminou
+            setMessages(prev => [...prev, { 
+                role: 'ai', 
+                text: `✅ Sincronização finalizada! Encontrei ${data.total_produtos_banco} produtos e ${data.total_categorias_banco} categorias no banco de dados.` 
+            }]);
+        } else {
+            // Se ainda não acabou, avança a barra devagar até 90% só para não parecer travado
+            setSyncProgress(old => old < 90 ? old + 5 : old);
+        }
+      } catch (error) {
+        console.error("Erro checando status:", error);
+      }
+    };
+
+    // Executa a verificação a cada 3 segundos (3000ms)
+    const interval = setInterval(checkStatus, 3000);
+    
+    // Limpa o intervalo quando o componente desmonta ou termina o sync
+    return () => clearInterval(interval);
+  }, [storeId, isSyncing]);
+
+  // --- DAQUI PARA BAIXO TUDO ESTÁ EXATAMENTE IGUAL AO SEU CÓDIGO ---
+
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
@@ -74,13 +102,12 @@ export default function NewSkinApp() {
     setIsLoading(true);
 
     try {
-      // AGORA ENVIAMOS O STORE_ID JUNTO COM A MENSAGEM
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             message: text,
-            store_id: storeId // <--- Vital para a IA saber quem é o cliente
+            store_id: storeId 
         }) 
       });
 
