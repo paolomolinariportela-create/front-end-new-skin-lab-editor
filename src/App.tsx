@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function NewSkinApp() {
-  // Estados Simulados
+  // Estados
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
-  const totalProducts = 1250; // Removido o set pois não usamos ainda
   const [messages, setMessages] = useState([
     { role: 'ai', text: 'Olá! Já estou mapeando sua loja. Enquanto isso, você já pode me dar ordens ou explorar as ferramentas abaixo.' }
   ]);
@@ -51,6 +50,7 @@ export default function NewSkinApp() {
             <div style={{ padding: '12px', color: '#64748b', cursor: 'pointer' }}>⚙️ Configurações</div>
           </nav>
 
+          {/* STATUS SINC */}
           <div style={{ marginTop: '30px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>SINCRONIA</span>
@@ -60,11 +60,12 @@ export default function NewSkinApp() {
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: '#2563eb', transition: 'width 0.3s' }}></div>
             </div>
             <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '8px' }}>
-              {isSyncing ? `Mapeando ${totalProducts} itens...` : 'Loja 100% Sincronizada'}
+              {isSyncing ? 'Mapeando loja...' : 'Loja 100% Sincronizada'}
             </p>
           </div>
         </div>
 
+        {/* RODAPÉ SIDEBAR */}
         <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '10px 0' }}>
             <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
@@ -84,8 +85,10 @@ export default function NewSkinApp() {
         </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
+      {/* MAIN CONTENT */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        
+        {/* CHAT AREA */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', maxWidth: '750px' }}>
             {messages.map((m, i) => (
@@ -98,7 +101,8 @@ export default function NewSkinApp() {
                   color: m.role === 'user' ? '#fff' : '#1e293b', 
                   boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
                   border: m.role === 'ai' ? '1px solid #e2e8f0' : 'none',
-                  maxWidth: '85%'
+                  maxWidth: '85%',
+                  lineHeight: '1.5'
                 }}>
                   {m.text}
                 </div>
@@ -107,9 +111,10 @@ export default function NewSkinApp() {
           </div>
         </div>
 
-        {/* FOOTER */}
+        {/* FOOTER ACTIONS */}
         <div style={{ padding: '20px 40px 40px 40px' }}>
           <div style={{ maxWidth: '750px', margin: '0 auto' }}>
+            
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
               {actions.map(a => (
                 <button 
@@ -132,4 +137,13 @@ export default function NewSkinApp() {
               />
               <button 
                 onClick={() => handleSend(inputValue)}
-                style={{ position: 'absolute', right: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px 25
+                style={{ position: 'absolute', right: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
