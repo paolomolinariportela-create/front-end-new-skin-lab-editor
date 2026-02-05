@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PreviewCard from './PreviewCard';
 
 // MANTIVE O SEU LINK CORRETO
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
