@@ -5,17 +5,19 @@ const BACKEND_URL = "https://web-production-4b8a.up.railway.app";
 
 export default function NewSkinApp() {
   // ==========================================
-  // 1. ESTADOS (AQUI FICA A MEMÓRIA DO APP)
+  // 1. ESTADOS
   // ==========================================
-  
-  // Controle de Abas (NOVO!)
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' ou 'products'
+  const [activeTab, setActiveTab] = useState('dashboard'); 
 
   const [storeId, setStoreId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // Dados do Topo
+  // Estado para a Lista de Produtos (NOVO)
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [storeStats, setStoreStats] = useState({
       name: 'Carregando...',
       products: 0,
@@ -30,7 +32,7 @@ export default function NewSkinApp() {
   const [isLoading, setIsLoading] = useState(false);
 
   // ==========================================
-  // 2. LÓGICA DE CARREGAMENTO (USE EFFECT)
+  // 2. LÓGICA DE CARREGAMENTO
   // ==========================================
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -38,8 +40,21 @@ export default function NewSkinApp() {
 
     if (id) {
       setStoreId(id);
+      checkStoreStatus(id);
+    } else {
+      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja.' }]);
+      setIsSyncing(false);
+    }
+  }, []);
 
-      // Checa status inicial
+  // Monitora a aba ativa para carregar produtos quando clicar em "Produtos"
+  useEffect(() => {
+    if (activeTab === 'products' && storeId) {
+        fetchProducts(storeId);
+    }
+  }, [activeTab, storeId]);
+
+  const checkStoreStatus = (id: string) => {
       fetch(`${BACKEND_URL}/admin/status/${id}`)
         .then(res => res.json())
         .then(data => {
@@ -50,58 +65,44 @@ export default function NewSkinApp() {
             });
 
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-                setMessages([{ role: 'ai', text: `Loja identificada! Seus dados já estão carregados. Pode começar.` }]);
+                setMessages([{ role: 'ai', text: `Loja identificada! Seus dados já estão carregados.` }]);
                 setSyncProgress(100);
                 setIsSyncing(false); 
-            } 
-            else {
+            } else {
                 setMessages([{ role: 'ai', text: `Iniciando sincronização...` }]);
                 fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
             }
         })
-        .catch(() => {
-            fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' });
-        });
-        
-    } else {
-      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja.' }]);
-      setIsSyncing(false);
-    }
-  }, []);
+        .catch(() => fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }));
+  };
 
-  // Monitoramento em Tempo Real
+  // Função para buscar produtos do Backend (NOVO)
+  const fetchProducts = async (id: string, search = "") => {
+      setLoadingProducts(true);
+      try {
+          let url = `${BACKEND_URL}/products/${id}?limit=100`;
+          if (search) url += `&search=${search}`;
+          
+          const res = await fetch(url);
+          const data = await res.json();
+          setProductsList(data);
+      } catch (error) {
+          console.error("Erro ao buscar produtos", error);
+      } finally {
+          setLoadingProducts(false);
+      }
+  };
+
+  // Monitoramento em Tempo Real do Status
   useEffect(() => {
     if (!storeId || !isSyncing) return;
-
-    const checkStatus = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/admin/status/${storeId}`);
-        const data = await res.json();
-        
-        setStoreStats({
-            name: data.loja_nome || `Loja ${storeId}`,
-            products: data.total_produtos_banco || 0,
-            categories: data.total_categorias_banco || 0
-        });
-
-        if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-            setSyncProgress(100);
-            setIsSyncing(false);
-            setMessages(prev => [...prev, { role: 'ai', text: `✅ Sincronização finalizada! ${data.total_produtos_banco} produtos prontos.` }]);
-        } else {
-            setSyncProgress(old => old < 90 ? old + 5 : old);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const interval = setInterval(checkStatus, 3000);
+    const interval = setInterval(() => checkStoreStatus(storeId), 3000);
     return () => clearInterval(interval);
   }, [storeId, isSyncing]);
 
+
   // ==========================================
-  // 3. FUNÇÕES DE AÇÃO (CHAT)
+  // 3. FUNÇÕES DE CHAT
   // ==========================================
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
@@ -119,9 +120,7 @@ export default function NewSkinApp() {
   ];
 
   const handleSend = async (text: string) => {
-    if (!text) return;
-    if (!storeId) return alert("Erro: ID da loja não encontrado.");
-
+    if (!text || !storeId) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setIsLoading(true);
@@ -132,15 +131,12 @@ export default function NewSkinApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, store_id: storeId }) 
       });
-
       const data = await response.json();
 
       if (data.action === 'preview_list' && data.data) {
           setMessages(prev => [...prev, { role: 'ai', text: data.response, type: 'preview', data: data.data }]);
       } else if (data.response) {
         setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'ai', text: '...' }]);
       }
     } catch (error) {
       setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão.' }]);
@@ -149,16 +145,34 @@ export default function NewSkinApp() {
     }
   };
 
+  // Função auxiliar para formatar variantes
+  const renderVariants = (jsonVariants: any[]) => {
+      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666'}}>Sem variantes</span>;
+      // Tenta pegar os valores (ex: "P", "Azul")
+      const values = jsonVariants.map(v => v.values ? v.values.map((val:any) => val.pt).join('/') : '').filter(Boolean);
+      
+      if(values.length === 0) return <span style={{color: '#666'}}>Padrão</span>;
+
+      return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {values.slice(0, 3).map((v, i) => (
+                  <span key={i} style={{ fontSize: '10px', background: '#333', padding: '2px 6px', borderRadius: '4px', color: '#ccc' }}>
+                      {v}
+                  </span>
+              ))}
+              {values.length > 3 && <span style={{ fontSize: '10px', color: '#888' }}>+{values.length - 3}</span>}
+          </div>
+      );
+  };
+
   // ==========================================
-  // 4. RENDERIZAÇÃO (O HTML DA TELA)
+  // 4. RENDERIZAÇÃO
   // ==========================================
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* --- SIDEBAR ESQUERDA --- */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-        
-        {/* Logo e Status no Topo */}
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
         
         <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
@@ -169,150 +183,107 @@ export default function NewSkinApp() {
                 {isSyncing ? 'SYNC...' : 'ONLINE'}
               </span>
             </div>
-            
             <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
             </div>
-
-            <div style={{ borderTop: '1px solid #444746', paddingTop: '12px' }}>
-                <div style={{ marginBottom: '10px' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{storeStats.name}</div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div>
-                        <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
-                        <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.products}</div>
-                    </div>
-                    <div style={{ width: '1px', backgroundColor: '#444746', height: '25px' }}></div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>CATEGORIAS</div>
-                        <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.categories}</div>
-                    </div>
-                </div>
-            </div>
+            <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>{storeStats.name}</div>
         </div>
 
-        {/* --- MENU COM CLIQUES FUNCIONANDO --- */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-            
-            {/* Botão DASHBOARD */}
-            <div 
-                onClick={() => setActiveTab('dashboard')} // <--- CLIQUE AQUI
-                style={{ 
-                    padding: '12px', 
-                    backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', // <--- COR MUDA SE ATIVO
-                    borderRadius: '50px', 
-                    color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', 
-                    fontWeight: '600', 
-                    paddingLeft: '20px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                }}>
-                ✨ Dashboard
-            </div>
-            
-            {/* Botão PRODUTOS */}
-            <div 
-                onClick={() => setActiveTab('products')} // <--- CLIQUE AQUI
-                style={{ 
-                    padding: '12px', 
-                    backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', // <--- COR MUDA SE ATIVO
-                    borderRadius: '50px', 
-                    color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', 
-                    paddingLeft: '20px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    transition: 'all 0.2s'
-                }}>
-                📦 Produtos
-            </div>
-
-            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📜 Histórico</div>
-            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>⚙️ Configurações</div>
+            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer' }}>✨ Dashboard</div>
+            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600' }}>📦 Produtos</div>
         </nav>
       </aside>
 
 
-      {/* --- ÁREA CENTRAL (MUDA CONFORME A ABA) --- */}
+      {/* ÁREA CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
-        {/* ######################################################## */}
-        {/* OPÇÃO 1: SE FOR ABA DASHBOARD -> MOSTRA O CHAT           */}
-        {/* ######################################################## */}
+        {/* --- ABA DASHBOARD --- */}
         {activeTab === 'dashboard' && (
             <>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{ width: '100%', maxWidth: '700px' }}>
                         {messages.map((m, i) => (
                         <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                            <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px', marginRight: '10px' }}>
-                                {m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}
-                            </div>
-                            
+                            <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
                             {m.type === 'preview' ? (
-                                <div style={{ textAlign: 'left' }}>
-                                    <div style={{ display: 'inline-block', padding: '18px 24px', color: '#E3E3E3', maxWidth: '90%' }}>
-                                        <div style={{ marginBottom: '10px' }}>{m.text}</div>
-                                        <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />
-                                    </div>
-                                </div>
+                                <div style={{ textAlign: 'left' }}><div style={{ display: 'inline-block', padding: '18px 24px', color: '#E3E3E3' }}><div style={{ marginBottom: '10px' }}>{m.text}</div><PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} /></div></div>
                             ) : (
-                                <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', maxWidth: '80%', lineHeight: '1.6', fontSize: '16px' }}>
-                                    {m.text}
-                                </div>
+                                <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '80%' }}>{m.text}</div>
                             )}
                         </div>
                         ))}
                         {isLoading && <div style={{ marginLeft: '20px', color: '#888' }}>Pensando...</div>}
                     </div>
                 </div>
-
-                {/* Input do Chat */}
-                <div style={{ padding: '20px 40px 40px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '700px' }}>
-                        <input 
-                            type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
-                            placeholder="Pergunte à IA ou use os cards ao lado..." disabled={isLoading}
-                            style={{ width: '100%', padding: '22px 25px', borderRadius: '100px', border: '1px solid #444746', backgroundColor: '#1E1F20', color: '#E3E3E3', outline: 'none', fontSize: '16px', paddingRight: '60px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }} 
-                        />
-                        <button onClick={() => handleSend(inputValue)} disabled={isLoading} style={{ position: 'absolute', right: '10px', backgroundColor: isLoading ? '#444746' : '#E3E3E3', color: '#131314', border: 'none', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{isLoading ? '...' : '➤'}</button>
+                <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ position: 'relative', width: '100%', maxWidth: '700px' }}>
+                        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)} placeholder="Pergunte à IA..." disabled={isLoading} style={{ width: '100%', padding: '22px 25px', borderRadius: '100px', border: '1px solid #444746', backgroundColor: '#1E1F20', color: '#E3E3E3', outline: 'none' }} />
+                        <button onClick={() => handleSend(inputValue)} style={{ position: 'absolute', right: '10px', top: '10px', backgroundColor: '#E3E3E3', color: '#131314', border: 'none', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer' }}>➤</button>
                     </div>
                 </div>
             </>
         )}
 
-        {/* ######################################################## */}
-        {/* OPÇÃO 2: SE FOR ABA PRODUTOS -> MOSTRA A TABELA (NOVO!)  */}
-        {/* ######################################################## */}
+        {/* --- ABA PRODUTOS (TABELA FULL WIDTH) --- */}
         {activeTab === 'products' && (
-            <div style={{ padding: '40px', height: '100%', overflowY: 'auto' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>📦 Gerenciador de Catálogo</h1>
-                
-                {/* Barra de Busca Fictícia (por enquanto) */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                    <input 
-                        placeholder="🔍 Buscar por nome, SKU ou categoria..." 
-                        style={{ flex: 1, padding: '15px', borderRadius: '8px', background: '#282A2C', border: '1px solid #444746', color: 'white', outline: 'none' }}
-                    />
-                    <button style={{ padding: '0 20px', borderRadius: '8px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Filtrar</button>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px', backgroundColor: '#131314' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h1 style={{ fontSize: '22px', fontWeight: 'bold' }}>Gerenciador de Catálogo</h1>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <input 
+                            placeholder="🔍 Buscar produto..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && fetchProducts(storeId!, searchTerm)}
+                            style={{ padding: '10px 15px', borderRadius: '8px', background: '#282A2C', border: '1px solid #444746', color: 'white', outline: 'none', width: '300px' }}
+                        />
+                        <button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 20px', borderRadius: '8px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}>Filtrar</button>
+                    </div>
                 </div>
 
-                {/* Área da Tabela */}
-                <div style={{ background: '#1E1F20', padding: '40px', borderRadius: '12px', textAlign: 'center', border: '1px solid #444746' }}>
-                    <div style={{ fontSize: '40px', marginBottom: '20px' }}>🚧</div>
-                    <h3 style={{ color: '#E3E3E3', marginBottom: '10px' }}>Área de Produtos em Construção</h3>
-                    <p style={{ color: '#8E918F' }}>
-                        O Backend já possui <strong>{storeStats.products} produtos</strong> sincronizados. <br/>
-                        Na próxima etapa, vamos conectar a tabela para listar todos eles aqui.
-                    </p>
+                {/* CONTAINER DA TABELA (FULL WIDTH) */}
+                <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
+                            <tr>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>IMAGEM</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>PRODUTO</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>SKU</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>VARIANTES</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>PREÇO</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>ESTOQUE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingProducts ? (
+                                <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#888' }}>Carregando catálogo...</td></tr>
+                            ) : productsList.map((p) => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                    <td style={{ padding: '12px 15px' }}>
+                                        <img src={p.image_url || 'https://via.placeholder.com/40'} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', backgroundColor: '#333' }} />
+                                    </td>
+                                    <td style={{ padding: '12px 15px', fontWeight: '500', color: '#E3E3E3' }}>{p.name}</td>
+                                    <td style={{ padding: '12px 15px', color: '#888', fontSize: '13px' }}>{p.sku || '-'}</td>
+                                    <td style={{ padding: '12px 15px' }}>
+                                        {/* RENDERIZA VARIANTE NA FRENTE DO PRODUTO */}
+                                        {renderVariants(p.variants_json)}
+                                    </td>
+                                    <td style={{ padding: '12px 15px', color: '#34A853', fontWeight: 'bold' }}>R$ {p.price?.toFixed(2)}</td>
+                                    <td style={{ padding: '12px 15px', color: p.stock > 0 ? '#A8C7FA' : '#F44336' }}>{p.stock} un.</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
+                <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '12px', color: '#666' }}>Mostrando {productsList.length} itens (Role para ver mais)</div>
             </div>
         )}
 
       </main>
 
-      {/* --- COLUNA DIREITA (SÓ APARECE NO DASHBOARD) --- */}
+      {/* SIDEBAR DIREITA (SÓ APARECE NO DASHBOARD) */}
       {activeTab === 'dashboard' && (
         <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
