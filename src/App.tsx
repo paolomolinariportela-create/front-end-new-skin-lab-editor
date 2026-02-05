@@ -18,7 +18,7 @@ export default function NewSkinApp() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Estado para rastrear alterações não salvas (Opcional, para UX)
+  // Estado para rastrear alterações não salvas
   const [hasChanges, setHasChanges] = useState(false);
 
   const [storeStats, setStoreStats] = useState({
@@ -104,7 +104,6 @@ export default function NewSkinApp() {
   // 3. FUNÇÕES DE EDIÇÃO (EXCEL MODE)
   // ==========================================
   
-  // Atualiza o estado local quando o usuário digita na tabela
   const handleInputChange = (id: string, field: string, value: any) => {
       setHasChanges(true);
       setProductsList(prevList => 
@@ -112,7 +111,6 @@ export default function NewSkinApp() {
       );
   };
 
-  // Edição rápida de variante (Prompt)
   const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
       const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
       if (newPrice) {
@@ -129,7 +127,7 @@ export default function NewSkinApp() {
   };
 
   // ==========================================
-  // 4. CHAT
+  // 4. CHAT E IA
   // ==========================================
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
@@ -148,6 +146,8 @@ export default function NewSkinApp() {
 
   const handleSend = async (text: string) => {
     if (!text || !storeId) return;
+    
+    // Adiciona mensagem do usuário
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setIsLoading(true);
@@ -160,10 +160,23 @@ export default function NewSkinApp() {
       });
       const data = await response.json();
 
+      // Extrai sugestões, se houver
+      const suggestions = data.suggestions || [];
+
       if (data.action === 'preview_list' && data.data) {
-          setMessages(prev => [...prev, { role: 'ai', text: data.response, type: 'preview', data: data.data }]);
+          setMessages(prev => [...prev, { 
+              role: 'ai', 
+              text: data.response, 
+              type: 'preview', 
+              data: data.data,
+              suggestions: suggestions // Salva sugestões
+          }]);
       } else if (data.response) {
-        setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
+        setMessages(prev => [...prev, { 
+            role: 'ai', 
+            text: data.response,
+            suggestions: suggestions // Salva sugestões
+        }]);
       }
     } catch (error) {
       setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão.' }]);
@@ -234,13 +247,51 @@ export default function NewSkinApp() {
                         {messages.map((m, i) => (
                         <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
                             <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
-                            {m.type === 'preview' ? (
-                                <div style={{ textAlign: 'left' }}><div style={{ display: 'inline-block', padding: '18px 24px', color: '#E3E3E3' }}><div style={{ marginBottom: '10px' }}>{m.text}</div><PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} /></div></div>
-                            ) : (
-                                <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '80%' }}>{m.text}</div>
-                            )}
+                            
+                            {/* BALÃO DE MENSAGEM */}
+                            <div style={{ 
+                                display: 'inline-block', 
+                                padding: '18px 24px', 
+                                borderRadius: '24px', 
+                                backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
+                                color: '#E3E3E3', 
+                                border: m.role === 'user' ? 'none' : 'none', 
+                                maxWidth: '85%',
+                                textAlign: 'left'
+                            }}>
+                                <div style={{ marginBottom: m.type === 'preview' || m.suggestions ? '15px' : '0' }}>{m.text}</div>
+
+                                {/* SUGESTÕES RÁPIDAS (BOTÕES/CHIPS) */}
+                                {m.suggestions && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
+                                        {m.suggestions.map((s: string, idx: number) => (
+                                            <button 
+                                                key={idx}
+                                                onClick={() => handleSend(s)}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: '1px solid #4285F4',
+                                                    color: '#A8C7FA',
+                                                    padding: '6px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '12px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* CARD DE PREVIEW */}
+                                {m.type === 'preview' && (
+                                    <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />
+                                )}
+                            </div>
                         </div>
                         ))}
+                        {isLoading && <div style={{ marginLeft: '20px', color: '#888' }}>Pensando...</div>}
                     </div>
                 </div>
                 <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -384,60 +435,3 @@ export default function NewSkinApp() {
     </div>
   );
 }
-// ... (Imports e Estados iniciais iguais) ...
-
-// DENTRO DO RETURN, NA PARTE DE RENDERIZAÇÃO DAS MENSAGENS:
-{messages.map((m, i) => (
-  <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-    <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>
-        {m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}
-    </div>
-    
-    {/* BALÃO DE TEXTO */}
-    <div style={{ 
-      display: 'inline-block', 
-      padding: '18px 24px', 
-      borderRadius: '24px', 
-      backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
-      color: '#E3E3E3', 
-      maxWidth: '85%',
-      lineHeight: '1.6',
-      textAlign: 'left'
-    }}>
-      <div style={{ marginBottom: m.type === 'preview' || m.suggestions ? '15px' : '0' }}>
-        {m.text}
-      </div>
-
-      {/* --- NOVO: SUGESTÕES RÁPIDAS (CHIPS) --- */}
-      {m.suggestions && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
-            {m.suggestions.map((s: string, idx: number) => (
-                <button 
-                    key={idx}
-                    onClick={() => handleSend(s)} // Clicar envia o texto pro chat
-                    style={{
-                        background: 'transparent',
-                        border: '1px solid #4285F4',
-                        color: '#A8C7FA',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(66, 133, 244, 0.1)'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                    {s}
-                </button>
-            ))}
-        </div>
-      )}
-
-      {/* CARD DE PREVIEW (SE HOUVER) */}
-      {m.type === 'preview' && (
-         <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />
-      )}
-    </div>
-  </div>
-))}
