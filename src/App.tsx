@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 
+// ⚠️ IMPORTANTE: COLE O LINK DO SEU BACKEND AQUI (SEM A BARRA NO FINAL)
+const BACKEND_URL = "app.newskinlab.com.br"; 
+
 export default function NewSkinApp() {
   // Estados
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Olá! Sou a IA da King Urban. Selecione uma ferramenta ao lado ou me peça algo aqui.' }
+    { role: 'ai', text: 'Olá! Sou a IA da King Urban. Conectada e pronta para receber comandos reais.' }
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Novo estado de carregamento
 
-  // Simulação de progresso
+  // Simulação de progresso (Mantivemos simulado por enquanto, a não ser que seu backend tenha rota de progresso)
   useEffect(() => {
     if (syncProgress < 100) {
       const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 80);
@@ -19,39 +23,70 @@ export default function NewSkinApp() {
     }
   }, [syncProgress]);
 
-  // Cards baseados na imagem do Hextom (Cores e Funções)
-  const hextomCards = [
-    { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, // Cyan
-    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" }, // Green
-    { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, // Orange
-    { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, // Teal
-    { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, // Purple
-    { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, // Grey
-    { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, // Red
-    { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, // Deep Orange
-    { title: "Weight", desc: "Shipping calc", color: "#E91E63", icon: "⚖️" }, // Pink
-    { title: "Variants", desc: "Options", color: "#2196F3", icon: "🔢" }, // Blue
-    { title: "Availability", desc: "Visibility", color: "#FFC107", icon: "👁️" }, // Amber
-    { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } // Brown
+  const actions = [
+    { title: "💰 Preços", cmd: "Aumentar preços em 10%...", color: "#34A853", icon: "💰" },
+    { title: "📝 Títulos", cmd: "Adicionar 'PROMO' nos títulos...", color: "#A142F4", icon: "📝" },
+    { title: "📦 Estoque", cmd: "Zerar produtos sem foto...", color: "#24C1E0", icon: "📦" },
+    { title: "🏷️ Tags", cmd: "Add tag 'Inverno'...", color: "#FA7B17", icon: "🏷️" },
   ];
 
-  const handleSend = (text: string) => {
+  // Hextom Cards (Mantidos)
+  const hextomCards = [
+    { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
+    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
+    { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
+    { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
+    { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
+    { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
+    { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
+    { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
+    { title: "Weight", desc: "Shipping calc", color: "#E91E63", icon: "⚖️" }, 
+    { title: "Variants", desc: "Options", color: "#2196F3", icon: "🔢" }, 
+    { title: "Availability", desc: "Visibility", color: "#FFC107", icon: "👁️" }, 
+    { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } 
+  ];
+
+  // --- AQUI ESTÁ A MÁGICA DA CONEXÃO REAL ---
+  const handleSend = async (text: string) => {
     if (!text) return;
-    setMessages([...messages, { role: 'user', text }]);
+
+    // 1. Mostra a mensagem do usuário na hora
+    setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'ai', text: `Entendido. Acessando o módulo "${text}" para processar sua solicitação...` }]);
-    }, 1000);
+    setIsLoading(true); // Ativa o "escrevendo..."
+
+    try {
+      // 2. Envia para o Backend Python
+      const response = await fetch(`${BACKEND_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }) // Envia o texto
+      });
+
+      const data = await response.json();
+
+      // 3. Recebe a resposta REAL da IA
+      if (data.response) {
+        setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'ai', text: 'Erro: O Backend respondeu, mas sem texto.' }]);
+      }
+
+    } catch (error) {
+      console.error("Erro ao conectar:", error);
+      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão: Não consegui falar com o servidor Python. Verifique a URL.' }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* 1. COLUNA ESQUERDA (SIDEBAR) */}
+      {/* SIDEBAR */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 10 }}>
         <div>
           <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '40px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
-          
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ padding: '12px', backgroundColor: '#004A77', borderRadius: '50px', color: '#A8C7FA', fontWeight: '600', paddingLeft: '20px' }}>✨ Dashboard</div>
             <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📦 Produtos</div>
@@ -59,7 +94,6 @@ export default function NewSkinApp() {
             <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>⚙️ Configurações</div>
           </nav>
 
-          {/* STATUS SINC */}
           <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
@@ -68,11 +102,9 @@ export default function NewSkinApp() {
                 {isSyncing ? 'SINCRONIZANDO...' : 'ONLINE'}
               </span>
             </div>
-            
             <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
             </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #444746', paddingTop: '12px' }}>
                 <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
@@ -81,12 +113,11 @@ export default function NewSkinApp() {
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#444746' }}></div>
                 <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>ATUALIZADO</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>13:20</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>Agora</div>
                 </div>
             </div>
           </div>
         </div>
-
         <div style={{ borderTop: '1px solid #444746', paddingTop: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '35px', height: '35px', backgroundColor: '#A8C7FA', borderRadius: '50%', color: '#001D35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
@@ -98,10 +129,8 @@ export default function NewSkinApp() {
         </div>
       </aside>
 
-      {/* 2. COLUNA CENTRAL (CHAT E INPUT) */}
+      {/* CENTER CHAT */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh' }}>
-        
-        {/* Log do Chat */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', maxWidth: '700px' }}>
             {messages.map((m, i) => (
@@ -124,10 +153,15 @@ export default function NewSkinApp() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div style={{ textAlign: 'left', marginBottom: '30px' }}>
+                 <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>NewSkin AI ✨</div>
+                 <div style={{ display: 'inline-block', padding: '18px 24px', color: '#8E918F', fontStyle: 'italic' }}>Pensando...</div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Input Flutuante Central */}
         <div style={{ padding: '20px 40px 40px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '700px' }}>
               <input 
@@ -136,6 +170,7 @@ export default function NewSkinApp() {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
                 placeholder="Pergunte à IA ou use os cards ao lado..." 
+                disabled={isLoading}
                 style={{ 
                     width: '100%', 
                     padding: '22px 25px', 
@@ -151,10 +186,11 @@ export default function NewSkinApp() {
               />
               <button 
                 onClick={() => handleSend(inputValue)}
+                disabled={isLoading}
                 style={{ 
                     position: 'absolute', 
                     right: '10px', 
-                    backgroundColor: '#E3E3E3', 
+                    backgroundColor: isLoading ? '#444746' : '#E3E3E3', 
                     color: '#131314', 
                     border: 'none', 
                     width: '40px', 
@@ -166,13 +202,13 @@ export default function NewSkinApp() {
                     alignItems: 'center',
                     justifyContent: 'center'
                 }}>
-                ➤
+                {isLoading ? '...' : '➤'}
               </button>
             </div>
         </div>
       </main>
 
-      {/* 3. COLUNA DIREITA (CARDS HEXTOM) */}
+      {/* RIGHT COLUMN (HEXTOM) */}
       <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
         
@@ -180,11 +216,11 @@ export default function NewSkinApp() {
           {hextomCards.map((card, index) => (
             <button 
               key={index}
-              onClick={() => handleSend(`Abrir ferramenta: ${card.title}`)}
+              onClick={() => handleSend(`Executar ferramenta: ${card.title}`)}
               style={{ 
                 padding: '16px', 
                 backgroundColor: '#1E1F20', 
-                border: `1px solid ${card.color}40`, // Borda sutil com a cor do card
+                border: `1px solid ${card.color}40`, 
                 borderRadius: '16px', 
                 cursor: 'pointer', 
                 textAlign: 'left',
@@ -206,9 +242,7 @@ export default function NewSkinApp() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {/* Barra de cor superior estilo Hextom */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
-              
               <div style={{ fontSize: '24px' }}>{card.icon}</div>
               <div>
                 <div style={{ fontWeight: '600', fontSize: '14px', color: '#E3E3E3' }}>{card.title}</div>
