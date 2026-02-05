@@ -1,29 +1,52 @@
 import { useState, useEffect } from 'react';
 
-// ⚠️ COLE O LINK DO SEU BACKEND AQUI (SEM A BARRA NO FINAL)
-const BACKEND_URL = "https://app.newskinlab.com.br"; 
+// ⚠️ CONFIRA SE O LINK ESTÁ CERTO (SEM BARRA NO FINAL)
+const BACKEND_URL = "https://seu-backend-python.up.railway.app"; 
 
 export default function NewSkinApp() {
   // Estados
+  const [storeId, setStoreId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Olá! Sou a IA da King Urban. Conectada e pronta para receber comandos reais.' }
+    { role: 'ai', text: 'Olá! Conectando à sua loja...' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Simulação de progresso
+  // 1. AO ABRIR O SITE: PEGA O ID DA LOJA E DISPARA O SYNC
   useEffect(() => {
-    if (syncProgress < 100) {
-      const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 80);
-      return () => clearTimeout(timer);
+    // Pega o ?store_id=123 da URL
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('store_id');
+
+    if (id) {
+      setStoreId(id);
+      setMessages([{ role: 'ai', text: `Loja ${id} detectada! Iniciei a sincronização dos seus produtos em segundo plano. Pode me usar enquanto isso.` }]);
+      
+      // Dispara o Sync no Backend (Fire and Forget)
+      fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' })
+        .then(res => console.log("Sync iniciado:", res.status))
+        .catch(err => console.error("Erro no Sync:", err));
+        
     } else {
+      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja. Por favor, acesse este app através do painel da Nuvemshop.' }]);
       setIsSyncing(false);
     }
-  }, [syncProgress]);
+  }, []);
 
-  // Hextom Cards (Coluna Direita)
+  // 2. SIMULAÇÃO VISUAL DA BARRA (Para conforto do usuário enquanto o backend trabalha)
+  useEffect(() => {
+    if (isSyncing && storeId) {
+      if (syncProgress < 95) {
+        // Vai até 95% e espera
+        const timer = setTimeout(() => setSyncProgress(prev => prev + 1), 150);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [syncProgress, isSyncing, storeId]);
+
+  // Hextom Cards (Mantidos)
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
@@ -41,16 +64,24 @@ export default function NewSkinApp() {
 
   const handleSend = async (text: string) => {
     if (!text) return;
+    if (!storeId) {
+        alert("Erro: Loja não identificada na URL.");
+        return;
+    }
 
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setIsLoading(true);
 
     try {
+      // AGORA ENVIAMOS O STORE_ID JUNTO COM A MENSAGEM
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ 
+            message: text,
+            store_id: storeId // <--- Vital para a IA saber quem é o cliente
+        }) 
       });
 
       const data = await response.json();
@@ -63,7 +94,7 @@ export default function NewSkinApp() {
 
     } catch (error) {
       console.error("Erro ao conectar:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão: Não consegui falar com o servidor Python. Verifique a URL.' }]);
+      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão. O servidor Python está online?' }]);
     } finally {
       setIsLoading(false);
     }
@@ -96,23 +127,14 @@ export default function NewSkinApp() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #444746', paddingTop: '12px' }}>
                 <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>1.250</div>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA ID</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>{storeId || "..."}</div>
                 </div>
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#444746' }}></div>
                 <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>ATUALIZADO</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>Agora</div>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>BACKEND</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>Conectado</div>
                 </div>
-            </div>
-          </div>
-        </div>
-        <div style={{ borderTop: '1px solid #444746', paddingTop: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '35px', height: '35px', backgroundColor: '#A8C7FA', borderRadius: '50%', color: '#001D35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
-            <div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#E3E3E3' }}>King Urban</div>
-              <div style={{ fontSize: '11px', color: '#C4C7C5' }}>Pro Plan</div>
             </div>
           </div>
         </div>
