@@ -39,7 +39,7 @@ export default function NewSkinApp() {
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3' }}>
       
       {/* SIDEBAR ESCURA */}
-      <aside style={{ width: '280px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <aside style={{ width: '280px', minWidth: '280px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
           <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '40px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
           
@@ -78,11 +78,11 @@ export default function NewSkinApp() {
       </aside>
 
       {/* ÁREA PRINCIPAL */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflowX: 'hidden' }}>
         
         {/* CHAT AREA */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '100%', maxWidth: '800px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ width: '100%' }}>
             {messages.map((m, i) => (
               <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
                 <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px', marginRight: '10px' }}>
@@ -95,7 +95,7 @@ export default function NewSkinApp() {
                   backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
                   color: '#E3E3E3', 
                   border: m.role === 'user' ? 'none' : 'none',
-                  maxWidth: '85%',
+                  maxWidth: '70%',
                   lineHeight: '1.6',
                   fontSize: '16px'
                 }}>
@@ -107,17 +107,17 @@ export default function NewSkinApp() {
         </div>
 
         {/* FOOTER ACTIONS E INPUT */}
-        <div style={{ padding: '20px 40px 50px 40px', background: 'linear-gradient(to top, #131314 80%, transparent)' }}>
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ padding: '20px 40px 50px 40px', background: 'linear-gradient(to top, #131314 80%, transparent)', width: '100%' }}>
+          <div style={{ width: '100%' }}>
             
             {/* CARDS ESTILO GEMINI/HEXTOM */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
               {actions.map(a => (
                 <button 
                   key={a.title} 
                   onClick={() => handleSend(a.cmd)}
                   style={{ 
-                    padding: '16px', 
+                    padding: '20px', 
                     border: '1px solid #444746', 
                     borderRadius: '16px', 
                     backgroundColor: '#1E1F20', 
@@ -126,19 +126,20 @@ export default function NewSkinApp() {
                     textAlign: 'left',
                     transition: '0.2s',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    flex: 1
                   }}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#282A2C'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1E1F20'}
                 >
-                    <div style={{ fontSize: '18px', marginBottom: '8px' }}>{a.icon}</div>
-                    <div style={{ fontWeight: '600', fontSize: '14px', color: a.color }}>{a.title}</div>
+                    <div style={{ fontSize: '22px', marginBottom: '10px' }}>{a.icon}</div>
+                    <div style={{ fontWeight: '600', fontSize: '16px', color: a.color }}>{a.title}</div>
                 </button>
               ))}
             </div>
 
             {/* INPUT FLUTUANTE */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
               <input 
                 type="text" 
                 value={inputValue}
@@ -176,9 +177,6 @@ export default function NewSkinApp() {
                 }}>
                 ➤
               </button>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '15px', color: '#8E918F', fontSize: '11px' }}>
-                A IA pode cometer erros. Verifique informações importantes.
             </div>
           </div>
         </div>
