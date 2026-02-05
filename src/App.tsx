@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import PreviewCard from './PreviewCard';
+import PreviewCard from './PreviewCard'; // <--- IMPORTAÇÃO NOVA (Garanta que o arquivo PreviewCard.tsx existe na mesma pasta)
 
-// MANTIVE O SEU LINK CORRETO
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 export default function NewSkinApp() {
@@ -9,9 +8,12 @@ export default function NewSkinApp() {
   const [storeId, setStoreId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
-  const [messages, setMessages] = useState([
+  
+  // Mudei a tipagem inicial de messages para aceitar 'type' e 'data' opcionais
+  const [messages, setMessages] = useState<any[]>([
     { role: 'ai', text: 'Olá! Conectando à sua loja...' }
   ]);
+  
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,7 +37,7 @@ export default function NewSkinApp() {
     }
   }, []);
 
-  // 2. MONITORAMENTO REAL (SUBSTITUÍ O FAKE POR ESTE REAL)
+  // 2. MONITORAMENTO REAL (MANTIDO IGUAL)
   useEffect(() => {
     // Só roda se tiver ID e estiver marcado como sincronizando
     if (!storeId || !isSyncing) return;
@@ -73,8 +75,6 @@ export default function NewSkinApp() {
     // Limpa o intervalo quando o componente desmonta ou termina o sync
     return () => clearInterval(interval);
   }, [storeId, isSyncing]);
-
-  // --- DAQUI PARA BAIXO TUDO ESTÁ EXATAMENTE IGUAL AO SEU CÓDIGO ---
 
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
@@ -114,7 +114,16 @@ export default function NewSkinApp() {
 
       const data = await response.json();
 
-      if (data.response) {
+      // --- ALTERAÇÃO AQUI: Lógica para detectar Preview ---
+      if (data.action === 'preview_list' && data.data) {
+          // Se o backend mandou produtos, criamos uma mensagem especial do tipo 'preview'
+          setMessages(prev => [...prev, { 
+              role: 'ai', 
+              text: data.response, 
+              type: 'preview',    // Marcador especial
+              data: data.data     // Dados dos produtos
+          }]);
+      } else if (data.response) {
         setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
       } else {
         setMessages(prev => [...prev, { role: 'ai', text: 'Erro: O Backend respondeu, mas sem texto.' }]);
@@ -126,6 +135,11 @@ export default function NewSkinApp() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Funções placeholder para os botões do Card
+  const handleConfirmPreview = () => {
+    alert("Próxima etapa: Aplicar edição em massa!");
   };
 
   return (
@@ -177,19 +191,41 @@ export default function NewSkinApp() {
                 <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px', marginRight: '10px' }}>
                     {m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}
                 </div>
-                <div style={{ 
-                  display: 'inline-block', 
-                  padding: '18px 24px', 
-                  borderRadius: '24px', 
-                  backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
-                  color: '#E3E3E3', 
-                  border: m.role === 'user' ? 'none' : 'none',
-                  maxWidth: '80%',
-                  lineHeight: '1.6',
-                  fontSize: '16px'
-                }}>
-                  {m.text}
-                </div>
+                
+                {/* --- ALTERAÇÃO AQUI: Renderiza CARD ou TEXTO dependendo do tipo --- */}
+                {m.type === 'preview' ? (
+                   <div style={{ textAlign: 'left' }}>
+                      <div style={{ 
+                        display: 'inline-block', 
+                        padding: '18px 24px', 
+                        // Removemos o fundo do container do card para ficar mais limpo
+                        color: '#E3E3E3', 
+                        maxWidth: '90%' 
+                      }}>
+                        <div style={{ marginBottom: '10px' }}>{m.text}</div>
+                        {/* Renderiza o Componente Visual */}
+                        <PreviewCard 
+                           products={m.data} 
+                           onConfirm={handleConfirmPreview} 
+                           onCancel={() => console.log('Cancelado')} 
+                        />
+                      </div>
+                   </div>
+                ) : (
+                   <div style={{ 
+                     display: 'inline-block', 
+                     padding: '18px 24px', 
+                     borderRadius: '24px', 
+                     backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
+                     color: '#E3E3E3', 
+                     border: m.role === 'user' ? 'none' : 'none',
+                     maxWidth: '80%',
+                     lineHeight: '1.6',
+                     fontSize: '16px'
+                   }}>
+                     {m.text}
+                   </div>
+                )}
               </div>
             ))}
             {isLoading && (
