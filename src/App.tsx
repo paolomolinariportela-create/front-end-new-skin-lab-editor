@@ -384,3 +384,60 @@ export default function NewSkinApp() {
     </div>
   );
 }
+// ... (Imports e Estados iniciais iguais) ...
+
+// DENTRO DO RETURN, NA PARTE DE RENDERIZAÇÃO DAS MENSAGENS:
+{messages.map((m, i) => (
+  <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+    <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>
+        {m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}
+    </div>
+    
+    {/* BALÃO DE TEXTO */}
+    <div style={{ 
+      display: 'inline-block', 
+      padding: '18px 24px', 
+      borderRadius: '24px', 
+      backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', 
+      color: '#E3E3E3', 
+      maxWidth: '85%',
+      lineHeight: '1.6',
+      textAlign: 'left'
+    }}>
+      <div style={{ marginBottom: m.type === 'preview' || m.suggestions ? '15px' : '0' }}>
+        {m.text}
+      </div>
+
+      {/* --- NOVO: SUGESTÕES RÁPIDAS (CHIPS) --- */}
+      {m.suggestions && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
+            {m.suggestions.map((s: string, idx: number) => (
+                <button 
+                    key={idx}
+                    onClick={() => handleSend(s)} // Clicar envia o texto pro chat
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid #4285F4',
+                        color: '#A8C7FA',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(66, 133, 244, 0.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                    {s}
+                </button>
+            ))}
+        </div>
+      )}
+
+      {/* CARD DE PREVIEW (SE HOUVER) */}
+      {m.type === 'preview' && (
+         <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />
+      )}
+    </div>
+  </div>
+))}
