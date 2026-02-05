@@ -13,7 +13,7 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // Estado para a Lista de Produtos (NOVO)
+  // Estado para a Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,7 +47,6 @@ export default function NewSkinApp() {
     }
   }, []);
 
-  // Monitora a aba ativa para carregar produtos quando clicar em "Produtos"
   useEffect(() => {
     if (activeTab === 'products' && storeId) {
         fetchProducts(storeId);
@@ -76,7 +75,6 @@ export default function NewSkinApp() {
         .catch(() => fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }));
   };
 
-  // Função para buscar produtos do Backend (NOVO)
   const fetchProducts = async (id: string, search = "") => {
       setLoadingProducts(true);
       try {
@@ -93,17 +91,33 @@ export default function NewSkinApp() {
       }
   };
 
-  // Monitoramento em Tempo Real do Status
   useEffect(() => {
     if (!storeId || !isSyncing) return;
     const interval = setInterval(() => checkStoreStatus(storeId), 3000);
     return () => clearInterval(interval);
   }, [storeId, isSyncing]);
 
+  // ==========================================
+  // 3. FUNÇÕES DE INTERAÇÃO (NOVO)
+  // ==========================================
+  
+  // Função que simula a edição ao clicar na variante
+  const handleEditVariant = (productName: string, variant: any) => {
+      // Monta o nome da variante (Ex: "G / Azul")
+      const variantName = variant.values.map((v:any) => v.pt).join(' / ') || 'Padrão';
+      
+      // Abre um prompt simples (depois podemos fazer um modal bonito)
+      const newPrice = window.prompt(
+          `Editar Variante: ${productName} - ${variantName}\n\nPreço Atual: R$ ${variant.price}\nEstoque Atual: ${variant.stock}\n\nDigite o novo preço para testar (Ex: 99.90):`, 
+          variant.price
+      );
 
-  // ==========================================
-  // 3. FUNÇÕES DE CHAT
-  // ==========================================
+      if (newPrice) {
+          alert(`📝 Simulação: Preço da variante "${variantName}" alterado para R$ ${newPrice}.\n(Na próxima etapa conectaremos isso ao backend para salvar de verdade!)`);
+          // Aqui futuramente chamaremos fetch(PUT /products/variant...)
+      }
+  };
+
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
@@ -145,22 +159,52 @@ export default function NewSkinApp() {
     }
   };
 
-  // Função auxiliar para formatar variantes
-  const renderVariants = (jsonVariants: any[]) => {
-      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666'}}>Sem variantes</span>;
-      // Tenta pegar os valores (ex: "P", "Azul")
-      const values = jsonVariants.map(v => v.values ? v.values.map((val:any) => val.pt).join('/') : '').filter(Boolean);
-      
-      if(values.length === 0) return <span style={{color: '#666'}}>Padrão</span>;
+  // Função auxiliar para renderizar variantes com SCROLL HORIZONTAL
+  const renderVariants = (product: any) => {
+      const jsonVariants = product.variants_json;
+      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666'}}>Padrão</span>;
 
       return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-              {values.slice(0, 3).map((v, i) => (
-                  <span key={i} style={{ fontSize: '10px', background: '#333', padding: '2px 6px', borderRadius: '4px', color: '#ccc' }}>
-                      {v}
-                  </span>
-              ))}
-              {values.length > 3 && <span style={{ fontSize: '10px', color: '#888' }}>+{values.length - 3}</span>}
+          <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              overflowX: 'auto', // <--- MÁGICA DO SCROLL
+              maxWidth: '350px', // Limita largura para forçar scroll se tiver muitos
+              paddingBottom: '5px',
+              whiteSpace: 'nowrap'
+          }}>
+              {jsonVariants.map((v: any, i: number) => {
+                  // Monta o nome (Ex: "G / Azul")
+                  const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
+                  
+                  return (
+                      <div 
+                        key={i} 
+                        onClick={() => handleEditVariant(product.name, v)} // <--- CLIQUE PARA EDITAR
+                        style={{ 
+                            fontSize: '11px', 
+                            background: '#333', 
+                            padding: '4px 8px', 
+                            borderRadius: '6px', 
+                            color: '#E3E3E3',
+                            border: '1px solid #444',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            minWidth: '60px',
+                            transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#444'}
+                        onMouseOut={(e) => e.currentTarget.style.background = '#333'}
+                        title="Clique para editar esta variante"
+                      >
+                          <span style={{ fontWeight: 'bold', marginBottom: '2px' }}>{name}</span>
+                          <span style={{ color: '#34A853' }}>R$ {v.price || product.price}</span>
+                          <span style={{ color: '#888', fontSize: '9px' }}>Estoque: {v.stock || 0}</span>
+                      </div>
+                  );
+              })}
           </div>
       );
   };
@@ -195,7 +239,6 @@ export default function NewSkinApp() {
         </nav>
       </aside>
 
-
       {/* ÁREA CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
@@ -226,7 +269,7 @@ export default function NewSkinApp() {
             </>
         )}
 
-        {/* --- ABA PRODUTOS (TABELA FULL WIDTH) --- */}
+        {/* --- ABA PRODUTOS (TABELA COMPLETA COM SCROLL) --- */}
         {activeTab === 'products' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px', backgroundColor: '#131314' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -243,17 +286,14 @@ export default function NewSkinApp() {
                     </div>
                 </div>
 
-                {/* CONTAINER DA TABELA (FULL WIDTH) */}
                 <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
                             <tr>
                                 <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>IMAGEM</th>
                                 <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>PRODUTO</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>SKU</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>VARIANTES</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>PREÇO</th>
-                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>ESTOQUE</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746' }}>SKU BASE</th>
+                                <th style={{ padding: '15px', color: '#8E918F', fontSize: '12px', borderBottom: '1px solid #444746', width: '40%' }}>VARIANTES (Role para o lado ➡️)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -267,23 +307,21 @@ export default function NewSkinApp() {
                                     <td style={{ padding: '12px 15px', fontWeight: '500', color: '#E3E3E3' }}>{p.name}</td>
                                     <td style={{ padding: '12px 15px', color: '#888', fontSize: '13px' }}>{p.sku || '-'}</td>
                                     <td style={{ padding: '12px 15px' }}>
-                                        {/* RENDERIZA VARIANTE NA FRENTE DO PRODUTO */}
-                                        {renderVariants(p.variants_json)}
+                                        {/* RENDERIZA LISTA HORIZONTAL DE VARIANTES */}
+                                        {renderVariants(p)}
                                     </td>
-                                    <td style={{ padding: '12px 15px', color: '#34A853', fontWeight: 'bold' }}>R$ {p.price?.toFixed(2)}</td>
-                                    <td style={{ padding: '12px 15px', color: p.stock > 0 ? '#A8C7FA' : '#F44336' }}>{p.stock} un.</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '12px', color: '#666' }}>Mostrando {productsList.length} itens (Role para ver mais)</div>
+                <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '12px', color: '#666' }}>Mostrando {productsList.length} itens</div>
             </div>
         )}
 
       </main>
 
-      {/* SIDEBAR DIREITA (SÓ APARECE NO DASHBOARD) */}
+      {/* SIDEBAR DIREITA */}
       {activeTab === 'dashboard' && (
         <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
