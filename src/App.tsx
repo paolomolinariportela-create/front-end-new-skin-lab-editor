@@ -17,22 +17,42 @@ export default function NewSkinApp() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. AO ABRIR O SITE: PEGA O ID DA LOJA E DISPARA O SYNC (MANTIDO IGUAL)
+  // 1. AO ABRIR O SITE: LÓGICA INTELIGENTE (SEM REPETIR SYNC)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('store_id');
 
     if (id) {
       setStoreId(id);
-      setMessages([{ role: 'ai', text: `Loja ${id} detectada! Iniciei a sincronização dos seus produtos em segundo plano. Pode me usar enquanto isso.` }]);
-      
-      // Dispara o Sync no Backend
-      fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' })
-        .then(res => console.log("Sync iniciado:", res.status))
-        .catch(err => console.error("Erro no Sync:", err));
+
+      // PASSO 1: Pergunta o status ATUAL antes de mandar sincronizar
+      fetch(`${BACKEND_URL}/admin/status/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            console.log("Checagem inicial:", data);
+
+            // SE JÁ ESTIVER TUDO PRONTO (SYNC_CONCLUIDO), NÃO BAIXA DE NOVO
+            if (data.ultimo_erro === "SYNC_CONCLUIDO") {
+                setMessages([{ role: 'ai', text: `Loja ${id} identificada! Seus dados já estão carregados e seguros. Pode começar a editar.` }]);
+                setSyncProgress(100);
+                setIsSyncing(false); // Já libera o painel
+            } 
+            // SE NÃO ESTIVER PRONTO, AÍ SIM MANDA SINCRONIZAR
+            else {
+                setMessages([{ role: 'ai', text: `Loja ${id} detectada! Iniciando sincronização apenas dos produtos novos...` }]);
+                
+                fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' })
+                    .then(res => console.log("Sync iniciado:", res.status))
+                    .catch(err => console.error("Erro no Sync:", err));
+            }
+        })
+        .catch(() => {
+            // Se der erro ao checar status, tenta sincronizar por garantia
+            fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' });
+        });
         
     } else {
-      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja. Por favor, acesse este app através do painel da Nuvemshop.' }]);
+      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja.' }]);
       setIsSyncing(false);
     }
   }, []);
