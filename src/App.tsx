@@ -50,18 +50,33 @@ export default function NewSkinApp() {
             <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>⚙️ Configurações</div>
           </nav>
 
-          {/* STATUS SINC DARK */}
-          <div style={{ marginTop: '40px', padding: '16px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          {/* STATUS SINC DARK (ATUALIZADO) */}
+          <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#A8C7FA' }}>{isSyncing ? 'SINCRONIZANDO...' : 'ONLINE'}</span>
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isSyncing ? '' : <span style={{ width: '8px', height: '8px', backgroundColor: '#34A853', borderRadius: '50%', display: 'inline-block' }}></span>}
+                {isSyncing ? 'SINCRONIZANDO...' : 'ONLINE'}
+              </span>
             </div>
-            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden' }}>
+            
+            {/* Barra de Progresso */}
+            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
             </div>
-            <p style={{ fontSize: '10px', color: '#8E918F', marginTop: '8px', textAlign: 'right' }}>
-              {syncProgress}% Concluído
-            </p>
+
+            {/* Informações Detalhadas */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #444746', paddingTop: '12px' }}>
+                <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>1.250</div>
+                </div>
+                <div style={{ width: '1px', height: '20px', backgroundColor: '#444746' }}></div>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>ATUALIZADO</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>13:20</div>
+                </div>
+            </div>
           </div>
         </div>
 
