@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import PreviewCard from './PreviewCard'; // <--- IMPORTAÇÃO NOVA (Garanta que o arquivo PreviewCard.tsx existe na mesma pasta)
+import PreviewCard from './PreviewCard';
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -9,7 +9,13 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // Mudei a tipagem inicial de messages para aceitar 'type' e 'data' opcionais
+  // NOVO ESTADO: Para guardar os dados do topo (Nome e Contagens)
+  const [storeStats, setStoreStats] = useState({
+      name: 'Carregando...',
+      products: 0,
+      categories: 0
+  });
+
   const [messages, setMessages] = useState<any[]>([
     { role: 'ai', text: 'Olá! Conectando à sua loja...' }
   ]);
@@ -30,24 +36,28 @@ export default function NewSkinApp() {
         .then(res => res.json())
         .then(data => {
             console.log("Checagem inicial:", data);
+            
+            // Atualiza os dados do card do topo
+            setStoreStats({
+                name: data.loja_nome || `Loja ${id}`, // Se o backend não mandar nome, usa o ID
+                products: data.total_produtos_banco || 0,
+                categories: data.total_categorias_banco || 0
+            });
 
-            // SE JÁ ESTIVER TUDO PRONTO (SYNC_CONCLUIDO), NÃO BAIXA DE NOVO
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-                setMessages([{ role: 'ai', text: `Loja ${id} identificada! Seus dados já estão carregados e seguros. Pode começar a editar.` }]);
+                setMessages([{ role: 'ai', text: `Loja identificada! Seus dados já estão carregados e seguros. Pode começar a editar.` }]);
                 setSyncProgress(100);
-                setIsSyncing(false); // Já libera o painel
+                setIsSyncing(false); 
             } 
-            // SE NÃO ESTIVER PRONTO, AÍ SIM MANDA SINCRONIZAR
             else {
-                setMessages([{ role: 'ai', text: `Loja ${id} detectada! Iniciando sincronização apenas dos produtos novos...` }]);
+                setMessages([{ role: 'ai', text: `Iniciando sincronização dos seus produtos...` }]);
                 
+                // Dispara o Sync apenas se precisar
                 fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' })
-                    .then(res => console.log("Sync iniciado:", res.status))
                     .catch(err => console.error("Erro no Sync:", err));
             }
         })
         .catch(() => {
-            // Se der erro ao checar status, tenta sincronizar por garantia
             fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' });
         });
         
@@ -57,42 +67,39 @@ export default function NewSkinApp() {
     }
   }, []);
 
-  // 2. MONITORAMENTO REAL (MANTIDO IGUAL)
+  // 2. MONITORAMENTO REAL E ATUALIZAÇÃO DOS DADOS DO TOPO
   useEffect(() => {
-    // Só roda se tiver ID e estiver marcado como sincronizando
     if (!storeId || !isSyncing) return;
 
     const checkStatus = async () => {
       try {
-        // Bate na rota de status que criamos
         const res = await fetch(`${BACKEND_URL}/admin/status/${storeId}`);
         const data = await res.json();
         
-        console.log("Status atual:", data); // Para você ver no console
+        // Atualiza os contadores em tempo real
+        setStoreStats({
+            name: data.loja_nome || `Loja ${storeId}`,
+            products: data.total_produtos_banco || 0,
+            categories: data.total_categorias_banco || 0
+        });
 
-        // Se o Backend disser que acabou:
         if (data.ultimo_erro === "SYNC_CONCLUIDO") {
             setSyncProgress(100);
-            setIsSyncing(false); // Para de verificar
+            setIsSyncing(false);
             
-            // Avisa o usuário que terminou
             setMessages(prev => [...prev, { 
                 role: 'ai', 
-                text: `✅ Sincronização finalizada! Encontrei ${data.total_produtos_banco} produtos e ${data.total_categorias_banco} categorias no banco de dados.` 
+                text: `✅ Sincronização finalizada! ${data.total_produtos_banco} produtos prontos para edição.` 
             }]);
         } else {
-            // Se ainda não acabou, avança a barra devagar até 90% só para não parecer travado
             setSyncProgress(old => old < 90 ? old + 5 : old);
         }
       } catch (error) {
-        console.error("Erro checando status:", error);
+        console.error("Erro status:", error);
       }
     };
 
-    // Executa a verificação a cada 3 segundos (3000ms)
     const interval = setInterval(checkStatus, 3000);
-    
-    // Limpa o intervalo quando o componente desmonta ou termina o sync
     return () => clearInterval(interval);
   }, [storeId, isSyncing]);
 
@@ -114,7 +121,7 @@ export default function NewSkinApp() {
   const handleSend = async (text: string) => {
     if (!text) return;
     if (!storeId) {
-        alert("Erro: Loja não identificada na URL.");
+        alert("Erro: ID da loja não encontrado.");
         return;
     }
 
@@ -126,80 +133,91 @@ export default function NewSkinApp() {
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            message: text,
-            store_id: storeId 
-        }) 
+        body: JSON.stringify({ message: text, store_id: storeId }) 
       });
 
       const data = await response.json();
 
-      // --- ALTERAÇÃO AQUI: Lógica para detectar Preview ---
       if (data.action === 'preview_list' && data.data) {
-          // Se o backend mandou produtos, criamos uma mensagem especial do tipo 'preview'
           setMessages(prev => [...prev, { 
               role: 'ai', 
               text: data.response, 
-              type: 'preview',    // Marcador especial
-              data: data.data     // Dados dos produtos
+              type: 'preview',
+              data: data.data
           }]);
       } else if (data.response) {
         setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
       } else {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Erro: O Backend respondeu, mas sem texto.' }]);
+        setMessages(prev => [...prev, { role: 'ai', text: '...' }]);
       }
 
     } catch (error) {
-      console.error("Erro ao conectar:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão. O servidor Python está online?' }]);
+      console.error(error);
+      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de Conexão.' }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Funções placeholder para os botões do Card
   const handleConfirmPreview = () => {
-    alert("Próxima etapa: Aplicar edição em massa!");
+    alert("Em breve: Aplicar edição em massa!");
   };
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
       {/* SIDEBAR ESQUERDA */}
-      <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 10 }}>
-        <div>
-          <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '40px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ padding: '12px', backgroundColor: '#004A77', borderRadius: '50px', color: '#A8C7FA', fontWeight: '600', paddingLeft: '20px' }}>✨ Dashboard</div>
-            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📦 Produtos</div>
-            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📜 Histórico</div>
-            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>⚙️ Configurações</div>
-          </nav>
-
-          <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746' }}>
+      <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+        
+        {/* 1. LOGO */}
+        <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
+        
+        {/* 2. CARD DE STATUS (MOVIDO PARA O TOPO E ATUALIZADO) */}
+        <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
               <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isSyncing ? '' : <span style={{ width: '8px', height: '8px', backgroundColor: '#34A853', borderRadius: '50%', display: 'inline-block' }}></span>}
-                {isSyncing ? 'SINCRONIZANDO...' : 'ONLINE'}
+                {isSyncing ? 'SYNC...' : 'ONLINE'}
               </span>
             </div>
+            
+            {/* Barra de Progresso */}
             <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #444746', paddingTop: '12px' }}>
-                <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA ID</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>{storeId || "..."}</div>
+
+            {/* Informações da Loja (Nome e Contadores) */}
+            <div style={{ borderTop: '1px solid #444746', paddingTop: '12px' }}>
+                <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
+                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {storeStats.name}
+                    </div>
                 </div>
-                <div style={{ width: '1px', height: '20px', backgroundColor: '#444746' }}></div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>BACKEND</div>
-                    <div style={{ fontSize: '13px', color: '#E3E3E3', fontWeight: 'bold' }}>Conectado</div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                        <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
+                        <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.products}</div>
+                    </div>
+                    <div style={{ width: '1px', backgroundColor: '#444746', height: '25px' }}></div>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>CATEGORIAS</div>
+                        <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.categories}</div>
+                    </div>
                 </div>
             </div>
-          </div>
         </div>
+
+        {/* 3. NAVEGAÇÃO */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+            <div style={{ padding: '12px', backgroundColor: '#004A77', borderRadius: '50px', color: '#A8C7FA', fontWeight: '600', paddingLeft: '20px' }}>✨ Dashboard</div>
+            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📦 Produtos</div>
+            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>📜 Histórico</div>
+            <div style={{ padding: '12px', color: '#C4C7C5', cursor: 'pointer', paddingLeft: '20px' }}>⚙️ Configurações</div>
+        </nav>
+
       </aside>
 
       {/* CHAT CENTRAL */}
@@ -212,18 +230,10 @@ export default function NewSkinApp() {
                     {m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}
                 </div>
                 
-                {/* --- ALTERAÇÃO AQUI: Renderiza CARD ou TEXTO dependendo do tipo --- */}
                 {m.type === 'preview' ? (
                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ 
-                        display: 'inline-block', 
-                        padding: '18px 24px', 
-                        // Removemos o fundo do container do card para ficar mais limpo
-                        color: '#E3E3E3', 
-                        maxWidth: '90%' 
-                      }}>
+                      <div style={{ display: 'inline-block', padding: '18px 24px', color: '#E3E3E3', maxWidth: '90%' }}>
                         <div style={{ marginBottom: '10px' }}>{m.text}</div>
-                        {/* Renderiza o Componente Visual */}
                         <PreviewCard 
                            products={m.data} 
                            onConfirm={handleConfirmPreview} 
@@ -303,7 +313,7 @@ export default function NewSkinApp() {
         </div>
       </main>
 
-      {/* COLUNA DIREITA (CARDS HEXTOM) */}
+      {/* COLUNA DIREITA (FERRAMENTAS BULK) */}
       <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
         
