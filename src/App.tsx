@@ -12,17 +12,18 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // --- ESTADO NOVO: FERRAMENTA ATIVA NO CHAT ---
-  const [activeTool, setActiveTool] = useState<any>(null); // Guarda o objeto do card clicado (ex: {title: 'Price', ...})
+  // --- ESTADO: FERRAMENTA ATIVA NO CHAT ---
+  const [activeTool, setActiveTool] = useState<any>(null); 
 
-  // Dados e Listas
+  // Dados
   const [productsList, setProductsList] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false); 
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Chat & Stats
+  // Stats (Barra Lateral)
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
+  
   const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com dúvidas sobre seu estoque.' }]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -108,9 +109,37 @@ export default function NewSkinApp() {
       setProductsList(prevList => prevList.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
+  const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
+      const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
+      if (newPrice) {
+          setHasChanges(true);
+          setProductsList(prevList => prevList.map(p => {
+              if (p.id === productId) {
+                  const updatedVariants = [...p.variants_json];
+                  updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], price: parseFloat(newPrice) };
+                  return { ...p, variants_json: updatedVariants };
+              }
+              return p;
+          }));
+      }
+  };
+
   const renderVariants = (product: any) => {
-      // (Lógica de renderização de variantes simplificada para não ocupar espaço, mantenha a sua original se preferir)
-      return <span style={{fontSize:'11px', color:'#666'}}>{product.variants_json?.length || 1} variações</span>;
+      return (
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
+              {product.variants_json?.map((v: any, i: number) => {
+                  const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
+                  return (
+                      <div key={i} onClick={() => handleEditVariant(product.id, i, v.price || product.price)} 
+                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', cursor: 'pointer', minWidth: '60px', textAlign: 'center' }}
+                        title="Clique para editar preço desta variante">
+                          <div style={{ fontWeight: 'bold' }}>{name}</div>
+                          <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
+                      </div>
+                  );
+              })}
+          </div>
+      );
   };
 
   const hextomCards = [
@@ -122,15 +151,19 @@ export default function NewSkinApp() {
     { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
     { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
     { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
+    { title: "Weight", desc: "Shipping calc", color: "#E91E63", icon: "⚖️" }, 
+    { title: "Variants", desc: "Options", color: "#2196F3", icon: "🔢" }, 
+    { title: "Availability", desc: "Visibility", color: "#FFC107", icon: "👁️" }, 
+    { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } 
   ];
 
-  // --- ATIVAÇÃO DE MODO ---
+  // --- MODO OPERADOR ---
   const activateToolMode = (tool: any) => {
       setActiveTool(tool);
       setMessages(prev => [...prev, { 
           role: 'ai', 
-          text: `🔧 Modo ${tool.title} ativado! Agora você pode me pedir para alterar ${tool.title.toLowerCase()} em massa.`,
-          system: true // Marca visual para diferenciar
+          text: `🔧 Modo ${tool.title} ativado! O que deseja alterar?`,
+          system: true 
       }]);
   };
 
@@ -138,12 +171,11 @@ export default function NewSkinApp() {
       setActiveTool(null);
       setMessages(prev => [...prev, { 
           role: 'ai', 
-          text: `✅ Modo edição encerrado. Voltei a ser sua assistente de consulta.`,
+          text: `✅ Modo edição encerrado.`,
           system: true
       }]);
   };
 
-  // --- ENVIO DE MENSAGEM ---
   const handleSend = async (text: string) => {
     if (!text || !storeId) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
@@ -157,7 +189,6 @@ export default function NewSkinApp() {
         body: JSON.stringify({ 
             message: text, 
             store_id: storeId,
-            // AQUI ESTÁ O SEGREDO: Enviamos o contexto se uma ferramenta estiver ativa
             context: activeTool ? activeTool.title.toLowerCase() : 'dashboard'
         }) 
       });
@@ -182,9 +213,10 @@ export default function NewSkinApp() {
   const executeCommand = (command: any) => {
       if (command?.changes) {
           const c = command.changes[0];
-          alert(`🚀 EXECUTANDO:\n${c.action} ${c.field} -> ${c.value}`);
+          alert(`🚀 ENVIANDO PARA NUVEMSHOP:\n\nAção: ${c.action}\nCampo: ${c.field}\nValor: ${c.value}`);
+          // AQUI VAMOS COLOCAR A CHAMADA REAL DO BACKEND
       } else {
-          alert("Erro no formato do comando.");
+          alert("Erro no comando.");
       }
   };
 
@@ -194,19 +226,52 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR ESQUERDA */}
+      {/* SIDEBAR ESQUERDA (DADOS RESTAURADOS) */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-        <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px' }}>NewSkin Lab</h2>
         
-        {/* Status simplificado */}
-        <div style={{ padding: '15px', backgroundColor: '#282A2C', borderRadius: '12px', border: '1px solid #444746', marginBottom: '20px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853' }}>{isSyncing ? 'SYNC...' : 'ONLINE'}</div>
-            <div style={{ fontSize: '14px', marginTop: '5px' }}>{storeStats.products} Produtos</div>
+        <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
+        
+        {/* CARD DE STATUS COMPLETO */}
+        <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isSyncing ? '' : <span style={{ width: '8px', height: '8px', backgroundColor: '#34A853', borderRadius: '50%', display: 'inline-block' }}></span>}
+                {isSyncing ? 'SYNC...' : 'ONLINE'}
+              </span>
+            </div>
+            
+            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #444746', paddingTop: '12px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
+                <div style={{ fontSize: '14px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {storeStats.name}
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
+                    <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.products}</div>
+                </div>
+                <div style={{ width: '1px', backgroundColor: '#444746', height: '25px' }}></div>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>CATEGORIAS</div>
+                    <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.categories}</div>
+                </div>
+            </div>
         </div>
 
+        {/* MENU COMPLETO */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', background: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', cursor: 'pointer', display: 'flex', gap: '10px' }}><span>✨</span> Dashboard</div>
-            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', background: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', cursor: 'pointer', display: 'flex', gap: '10px' }}><span>📦</span> Produtos</div>
+            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
+            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💬</span> Fale Conosco</div>
         </nav>
       </aside>
 
@@ -219,7 +284,7 @@ export default function NewSkinApp() {
                 {/* ÁREA DE CHAT */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                     
-                    {/* --- BARRA DE CONTEXTO ATIVO (AQUI ESTÁ A MÁGICA) --- */}
+                    {/* BARRA DE CONTEXTO (TOPO DO CHAT) */}
                     {activeTool && (
                         <div style={{ 
                             position: 'absolute', top: 0, left: 0, right: 0, 
@@ -230,7 +295,7 @@ export default function NewSkinApp() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                 <div style={{ fontSize: '24px' }}>{activeTool.icon}</div>
                                 <div>
-                                    <div style={{ fontSize: '10px', color: '#A8C7FA', fontWeight: 'bold', textTransform: 'uppercase' }}>Modo Operador Ativo</div>
+                                    <div style={{ fontSize: '10px', color: '#A8C7FA', fontWeight: 'bold', textTransform: 'uppercase' }}>MODO OPERADOR ATIVO</div>
                                     <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Editando {activeTool.title}</div>
                                 </div>
                             </div>
@@ -262,7 +327,6 @@ export default function NewSkinApp() {
                                     }}>
                                         <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
                                         
-                                        {/* Renderização de Comando */}
                                         {m.command && (
                                             <div style={{ backgroundColor: '#131314', border: '1px solid #444', borderRadius: '12px', padding: '20px', marginTop: '15px', textAlign: 'left' }}>
                                                 <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '15px' }}>
@@ -309,13 +373,13 @@ export default function NewSkinApp() {
                     {hextomCards.map((card, index) => (
                         <button 
                             key={index} 
-                            onClick={() => activateToolMode(card)} // AGORA SÓ ATIVA O MODO, NÃO MUDA PÁGINA
+                            onClick={() => activateToolMode(card)} 
                             style={{ 
                                 padding: '16px', 
-                                backgroundColor: activeTool?.title === card.title ? `${card.color}20` : '#1E1F20', // Highlight se ativo
+                                backgroundColor: activeTool?.title === card.title ? `${card.color}20` : '#1E1F20', 
                                 border: activeTool?.title === card.title ? `2px solid ${card.color}` : `1px solid ${card.color}40`, 
                                 borderRadius: '16px', cursor: 'pointer', textAlign: 'left', minHeight: '120px', position: 'relative',
-                                opacity: (activeTool && activeTool.title !== card.title) ? 0.5 : 1 // Apaga os outros se um estiver ativo
+                                opacity: (activeTool && activeTool.title !== card.title) ? 0.5 : 1
                             }}
                         >
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
@@ -328,11 +392,37 @@ export default function NewSkinApp() {
             </div>
         )}
 
-        {/* PRODUTOS */}
+        {/* ABA DE PRODUTOS */}
         {activeTab === 'products' && (
-            <div style={{ padding: '20px' }}>
-                <h1>Catálogo</h1>
-                {/* Tabela de produtos aqui */}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo</h1>
+                    <div style={{ display: 'flex', gap: '10px' }}><input placeholder="🔍 Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} /><button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none' }}>Filtrar</button></div>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+                    <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
+                            <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
+                        </thead>
+                        <tbody>
+                            {loadingProducts ? (
+                                <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
+                            ) : (
+                                productsList.map((p) => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                        <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
+                                        <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
+                                        <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         )}
 
