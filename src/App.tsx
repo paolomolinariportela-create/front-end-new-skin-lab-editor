@@ -185,8 +185,42 @@ export default function NewSkinApp() {
     }
   };
 
-  const executeCommand = (command: any) => {
-      alert(`🚀 COMANDO APROVADO!\n\n${command.type} -> ${JSON.stringify(command.params)}`);
+  // Função para executar o comando REAL
+  const executeCommand = async (command: any) => {
+      if (!storeId) return;
+
+      // Feedback visual imediato
+      alert("🚀 Enviando comando para o servidor...");
+
+      try {
+          const response = await fetch(`${BACKEND_URL}/execute_tool`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  store_id: storeId,
+                  tool_type: command.type,
+                  params: command.params
+              })
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+              // Adiciona mensagem de sucesso no chat
+              setMessages(prev => [...prev, { 
+                  role: 'ai', 
+                  text: `✅ Feito! ${data.message}` 
+              }]);
+              
+              // Atualiza a tabela de produtos para ver o novo preço
+              setTimeout(() => fetchProducts(storeId), 2000); 
+          } else {
+              alert("Erro ao executar: " + data.detail);
+          }
+
+      } catch (error) {
+          alert("Erro de conexão ao tentar executar.");
+      }
   };
 
   // ==========================================
