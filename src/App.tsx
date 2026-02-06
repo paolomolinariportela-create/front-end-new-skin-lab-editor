@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PreviewCard from './PreviewCard';
-import PricePage from './pages/PricePage'; // Importação da página
+import PricePage from './pages/PricePage'; // Importação da página inteligente
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -18,6 +18,10 @@ export default function NewSkinApp() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Inteligência de Preço (NOVO)
+  // Guarda os dados que a IA extraiu para passar para a PricePage
+  const [toolParams, setToolParams] = useState<any>(null);
 
   // Stats
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
@@ -171,6 +175,20 @@ export default function NewSkinApp() {
       const data = await response.json();
       const suggestions = data.suggestions || [];
 
+      // === LOGICA DE PONTE PARA O EDITOR ===
+      // Se o backend devolver um comando de preço, ativamos a ferramenta
+      if (data.command && data.command.type === 'price_preview') {
+          // Guardamos os parâmetros (filtro, valor, ação)
+          setToolParams(data.command.summary); 
+          // Mudamos para a aba do editor
+          setActiveTab('price_tool');
+          // Adicionamos mensagem de sucesso no chat apenas para registro
+          setMessages(prev => [...prev, { role: 'ai', text: "Abrindo editor de preços com sua solicitação..." }]);
+          setIsLoading(false);
+          return;
+      }
+      // =====================================
+
       setMessages(prev => [...prev, { 
           role: 'ai', 
           text: data.response, 
@@ -197,7 +215,7 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR ESQUERDA (Sempre visível agora) */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
@@ -240,8 +258,10 @@ export default function NewSkinApp() {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
             <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
             <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
-            {/* O Botão da ferramenta de preço agora ativa a aba price_tool */}
-            <div onClick={() => setActiveTab('price_tool')} style={{ padding: '12px', backgroundColor: activeTab === 'price_tool' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'price_tool' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💲</span> Bulk Editor</div>
+            
+            {/* O Botão da ferramenta de preço */}
+            <div onClick={() => { setActiveTab('price_tool'); setToolParams(null); }} style={{ padding: '12px', backgroundColor: activeTab === 'price_tool' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'price_tool' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💲</span> Bulk Editor</div>
+            
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
         </nav>
@@ -260,11 +280,12 @@ export default function NewSkinApp() {
                             <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
                             <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '90%', textAlign: 'left' }}>
                                 <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
-                                {m.command && (
+                                
+                                {m.command && m.command.type !== 'price_preview' && (
                                     <div style={{ backgroundColor: '#1E1F20', border: '1px solid #4285F4', borderRadius: '12px', padding: '20px', marginTop: '15px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO IDENTIFICADA</span></div>
                                         <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '20px', padding: '10px', background: '#282A2C', borderRadius: '8px' }}>
-                                            {m.command.type === 'update_price' ? `Mudar Preço: ${m.command.params.operation.toUpperCase()} | Valor: ${m.command.params.value}` : `Editar Título: ${m.command.params.action}`}
+                                            {m.command.params ? JSON.stringify(m.command.params) : 'Comando simples'}
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <button onClick={() => executeCommand(m.command)} style={{ flex: 1, padding: '12px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ APROVAR</button>
@@ -272,6 +293,7 @@ export default function NewSkinApp() {
                                         </div>
                                     </div>
                                 )}
+
                                 {m.suggestions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>{m.suggestions.map((s: string, idx: number) => <button key={idx} onClick={() => handleSend(s)} style={{ background: 'transparent', border: '1px solid #4285F4', color: '#A8C7FA', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>{s}</button>)}</div>}
                                 {m.type === 'preview_list' && <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />}
                             </div>
@@ -324,12 +346,13 @@ export default function NewSkinApp() {
             </div>
         )}
 
-        {/* ABA: FERRAMENTA DE PREÇO (NOVO LUGAR) */}
+        {/* ABA: FERRAMENTA DE PREÇO (INTEGRADA) */}
         {activeTab === 'price_tool' && (
             <div style={{ flex: 1, overflowY: 'auto' }}>
                 <PricePage 
                     storeId={storeId} 
                     onBack={() => setActiveTab('dashboard')} 
+                    initialParams={toolParams} // Passa os dados que vieram do chat
                 />
             </div>
         )}
@@ -346,6 +369,7 @@ export default function NewSkinApp() {
                   key={index} 
                   onClick={() => {
                     if (card.title === "Price") {
+                        setToolParams(null); // Reseta o editor para abrir limpo
                         setActiveTab('price_tool');
                     } else {
                         handleSend(`Executar ferramenta: ${card.title}`);
