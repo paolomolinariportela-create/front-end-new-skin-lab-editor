@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PreviewCard from './PreviewCard';
+// 1. IMPORTAÇÃO DA NOVA PÁGINA (Certifique-se que o arquivo está na pasta pages)
+import PricePage from './pages/PricePage';
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -14,7 +16,7 @@ export default function NewSkinApp() {
   
   // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false); // <--- AGORA VAMOS USAR ISSO
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -142,7 +144,7 @@ export default function NewSkinApp() {
 
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
-    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
+    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" }, // <--- VAMOS INTERCEPTAR ESTE CLIQUE
     { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
     { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
     { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
@@ -192,6 +194,18 @@ export default function NewSkinApp() {
   // ==========================================
   // 4. RENDERIZAÇÃO
   // ==========================================
+  
+  // AQUI: Se a aba for 'price_tool', mostramos a página nova em tela cheia (mas dentro do layout se quiser, ou cobrindo tudo)
+  // Neste caso, vamos substituir o conteúdo principal.
+  if (activeTab === 'price_tool') {
+      return (
+          <PricePage 
+              storeId={storeId} 
+              onBack={() => setActiveTab('dashboard')} 
+          />
+      );
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
@@ -299,7 +313,6 @@ export default function NewSkinApp() {
                             <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
                         </thead>
                         <tbody>
-                            {/* AQUI ESTÁ A CORREÇÃO: USAMOS loadingProducts PARA MOSTRAR CARREGAMENTO */}
                             {loadingProducts ? (
                                 <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
                             ) : (
@@ -328,7 +341,18 @@ export default function NewSkinApp() {
             <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {hextomCards.map((card, index) => (
-                <button key={index} onClick={() => handleSend(`Executar ferramenta: ${card.title}`)} style={{ padding: '16px', backgroundColor: '#1E1F20', border: `1px solid ${card.color}40`, borderRadius: '16px', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden', minHeight: '120px' }}>
+                <button 
+                  key={index} 
+                  // CORREÇÃO: VERIFICAMOS SE É O CARD "PRICE" PARA ABRIR A PÁGINA
+                  onClick={() => {
+                    if (card.title === "Price") {
+                        setActiveTab('price_tool');
+                    } else {
+                        handleSend(`Executar ferramenta: ${card.title}`);
+                    }
+                  }} 
+                  style={{ padding: '16px', backgroundColor: '#1E1F20', border: `1px solid ${card.color}40`, borderRadius: '16px', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden', minHeight: '120px' }}
+                >
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
                     <div style={{ fontSize: '24px' }}>{card.icon}</div>
                     <div><div style={{ fontWeight: '600', fontSize: '14px', color: '#E3E3E3' }}>{card.title}</div><div style={{ fontSize: '11px', color: '#8E918F' }}>{card.desc}</div></div>
