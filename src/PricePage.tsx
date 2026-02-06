@@ -3,6 +3,8 @@
 export default function PricePage({ onBack, storeId }: { onBack: () => void, storeId: string | null }) {
   return (
     <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', color: '#E3E3E3' }}>
+      
+      {/* Botão de Voltar */}
       <button 
         onClick={onBack} 
         style={{ background: '#333', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px', fontWeight: 'bold' }}
@@ -10,6 +12,7 @@ export default function PricePage({ onBack, storeId }: { onBack: () => void, sto
         ← Voltar ao Dashboard
       </button>
 
+      {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #333', paddingBottom: '20px' }}>
         <div style={{ fontSize: '40px', background: '#4CAF5020', padding: '15px', borderRadius: '12px', color: '#4CAF50', border: '1px solid #4CAF5040' }}>
           💲
@@ -17,12 +20,13 @@ export default function PricePage({ onBack, storeId }: { onBack: () => void, sto
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Ajuste de Preços em Massa</h1>
           <p style={{ color: '#888', margin: 0 }}>
-            Loja conectada: <strong>{storeId || 'Identificando...'}</strong>
+            Conectado com a Loja ID: <strong>{storeId}</strong>
           </p>
         </div>
       </div>
 
-      <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '16px', padding: '30px', marginBottom: '25px' }}>
+      {/* Filtros Estilo Hextom */}
+      <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '16px', padding: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '25px', color: '#A8C7FA', fontSize: '14px', textTransform: 'uppercase' }}>
           Passo 1: Selecionar Produtos
         </h3>
@@ -42,6 +46,7 @@ export default function PricePage({ onBack, storeId }: { onBack: () => void, sto
           </button>
         </div>
       </div>
+
     </div>
   );
 }
