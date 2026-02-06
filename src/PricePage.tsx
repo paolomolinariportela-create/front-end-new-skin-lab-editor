@@ -1,4 +1,5 @@
-// src/pages/PricePage.tsx
+// Removi o import do useState pois ele não estava sendo usado ainda
+import React from 'react';
 
 interface PricePageProps {
   onBack: () => void;
@@ -25,7 +26,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Ajuste de Preços</h1>
           <p style={{ color: '#888', margin: 0 }}>
-            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId}</span>
+            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || 'Carregando...'}</span>
           </p>
         </div>
       </div>
@@ -55,7 +56,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
   );
 }
 
-const selectStyle = { 
+const selectStyle: React.CSSProperties = { 
   padding: '12px', 
   borderRadius: '8px', 
   background: '#131314', 
