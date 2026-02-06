@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PreviewCard from './PreviewCard';
-// 1. IMPORTAÇÃO DA NOVA PÁGINA (Certifique-se que o arquivo está na pasta pages)
-import PricePage from './pages/PricePage';
+import PricePage from './pages/PricePage'; // Importação da página
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -144,7 +143,7 @@ export default function NewSkinApp() {
 
   const hextomCards = [
     { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
-    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" }, // <--- VAMOS INTERCEPTAR ESTE CLIQUE
+    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" }, 
     { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
     { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
     { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
@@ -194,22 +193,11 @@ export default function NewSkinApp() {
   // ==========================================
   // 4. RENDERIZAÇÃO
   // ==========================================
-  
-  // AQUI: Se a aba for 'price_tool', mostramos a página nova em tela cheia (mas dentro do layout se quiser, ou cobrindo tudo)
-  // Neste caso, vamos substituir o conteúdo principal.
-  if (activeTab === 'price_tool') {
-      return (
-          <PricePage 
-              storeId={storeId} 
-              onBack={() => setActiveTab('dashboard')} 
-          />
-      );
-  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR ESQUERDA */}
+      {/* SIDEBAR ESQUERDA (Sempre visível agora) */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
@@ -252,15 +240,17 @@ export default function NewSkinApp() {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
             <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
             <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
+            {/* O Botão da ferramenta de preço agora ativa a aba price_tool */}
+            <div onClick={() => setActiveTab('price_tool')} style={{ padding: '12px', backgroundColor: activeTab === 'price_tool' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'price_tool' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💲</span> Bulk Editor</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
-            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💬</span> Fale Conosco</div>
         </nav>
       </aside>
 
       {/* ÁREA CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
+        {/* ABA: DASHBOARD */}
         {activeTab === 'dashboard' && (
             <>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -300,7 +290,7 @@ export default function NewSkinApp() {
             </>
         )}
 
-        {/* PRODUTOS */}
+        {/* ABA: PRODUTOS */}
         {activeTab === 'products' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -333,9 +323,20 @@ export default function NewSkinApp() {
                 </div>
             </div>
         )}
+
+        {/* ABA: FERRAMENTA DE PREÇO (NOVO LUGAR) */}
+        {activeTab === 'price_tool' && (
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+                <PricePage 
+                    storeId={storeId} 
+                    onBack={() => setActiveTab('dashboard')} 
+                />
+            </div>
+        )}
+
       </main>
 
-      {/* SIDEBAR DIREITA */}
+      {/* SIDEBAR DIREITA (Visível apenas no Dashboard) */}
       {activeTab === 'dashboard' && (
         <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
@@ -343,7 +344,6 @@ export default function NewSkinApp() {
             {hextomCards.map((card, index) => (
                 <button 
                   key={index} 
-                  // CORREÇÃO: VERIFICAMOS SE É O CARD "PRICE" PARA ABRIR A PÁGINA
                   onClick={() => {
                     if (card.title === "Price") {
                         setActiveTab('price_tool');
