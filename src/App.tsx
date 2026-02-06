@@ -1,343 +1,346 @@
-import { useState, useEffect, useRef } from 'react';
-import PreviewCard from './PreviewCard';
+import { useState, useEffect } from 'react';
 
+// ==========================================
+// CONFIGURAÇÃO & TIPOS
+// ==========================================
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
-export default function NewSkinApp() {
-  // ==========================================
-  // 1. ESTADOS
-  // ==========================================
-  const [activeTab, setActiveTab] = useState('dashboard'); 
+interface Task {
+  id: number;
+  time: string;
+  status: 'Running' | 'Finished' | 'Failed';
+  details: string;
+  items: string;
+}
+
+export default function NewSkinHextomClone() {
+  // --- ESTADOS ---
   const [storeId, setStoreId] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(true);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const [activePage, setActivePage] = useState('dashboard'); // 'dashboard', 'price', 'history', etc.
+  const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0 });
   
-  // Lista de Produtos
-  const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false); // <--- AGORA VAMOS USAR ISSO
-  const [searchTerm, setSearchTerm] = useState("");
-  const [hasChanges, setHasChanges] = useState(false);
+  // Estado Simulado de Histórico (Depois conectamos no banco)
+  const [tasks, setTasks] = useState<Task[]>([
+      { id: 102, time: 'Hoje 14:30', status: 'Finished', details: 'Update Price (Increase 10%)', items: '4495 products' },
+      { id: 101, time: 'Ontem 09:15', status: 'Finished', details: 'Sale (Decrease 5%)', items: '120 products' }
+  ]);
 
-  // Stats
-  const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
-  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com preços, títulos ou dúvidas sobre seu estoque.' }]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const chatEndRef = useRef<null | HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // ==========================================
-  // 2. LÓGICA DE CARREGAMENTO
-  // ==========================================
+  // --- INICIALIZAÇÃO ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('store_id');
-
     if (id) {
       setStoreId(id);
-      checkStoreStatus(id);
-    } else {
-      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja.' }]);
-      setIsSyncing(false);
+      fetchStats(id);
     }
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'products' && storeId) {
-        fetchProducts(storeId);
-    }
-  }, [activeTab, storeId]);
-
-  const checkStoreStatus = (id: string) => {
+  const fetchStats = (id: string) => {
       fetch(`${BACKEND_URL}/admin/status/${id}`)
         .then(res => res.json())
-        .then(data => {
-            setStoreStats({
-                name: data.loja_nome || `Loja ${id}`,
-                products: data.total_produtos_banco || 0,
-                categories: data.total_categorias_banco || 0
-            });
-
-            if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-                if(isSyncing) {
-                   setMessages(prev => [...prev, { role: 'ai', text: `Conectado! ${data.total_produtos_banco} produtos prontos para edição.` }]);
-                   setSyncProgress(100);
-                   setIsSyncing(false); 
-                }
-            } else {
-                setSyncProgress(old => old < 90 ? old + 10 : old);
-                fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
-            }
-        })
-        .catch(() => fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }));
+        .then(data => setStoreStats({ name: data.loja_nome || 'Loja', products: data.total_produtos_banco || 0 }));
   };
 
-  const fetchProducts = async (id: string, search = "") => {
-      setLoadingProducts(true);
+  // Função para adicionar tarefa ao histórico visual e disparar backend
+  const startTask = async (toolType: string, params: any, description: string) => {
+      if (!storeId) return;
+      
+      // 1. Adiciona ao histórico visual como "Running"
+      const newTask: Task = {
+          id: Date.now(),
+          time: new Date().toLocaleTimeString(),
+          status: 'Running',
+          details: description,
+          items: 'Calculando...'
+      };
+      setTasks(prev => [newTask, ...prev]);
+      setActivePage('history'); // Redireciona para o histórico igual o Hextom
+
+      // 2. Dispara Backend
       try {
-          let url = `${BACKEND_URL}/products/${id}?limit=100`;
-          if (search) url += `&search=${search}`;
-          const res = await fetch(url);
-          const data = await res.json();
-          setProductsList(data);
-      } catch (error) { console.error(error); } finally { setLoadingProducts(false); }
-  };
+          await fetch(`${BACKEND_URL}/execute_tool`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ store_id: storeId, tool_type: toolType, params: params })
+          });
+          
+          // Simula conclusão após 2s (Na vida real, usariamos websocket ou polling)
+          setTimeout(() => {
+              setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, status: 'Finished', items: `${storeStats.products} products` } : t));
+          }, 3000);
 
-  useEffect(() => {
-    if (!storeId || !isSyncing) return;
-    const interval = setInterval(() => checkStoreStatus(storeId), 5000);
-    return () => clearInterval(interval);
-  }, [storeId, isSyncing]);
-
-  // ==========================================
-  // 3. FUNÇÕES UX
-  // ==========================================
-  const handleInputChange = (id: string, field: string, value: any) => {
-      setHasChanges(true);
-      setProductsList(prevList => prevList.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
-
-  const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
-      const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
-      if (newPrice) {
-          setHasChanges(true);
-          setProductsList(prevList => prevList.map(p => {
-              if (p.id === productId) {
-                  const updatedVariants = [...p.variants_json];
-                  updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], price: parseFloat(newPrice) };
-                  return { ...p, variants_json: updatedVariants };
-              }
-              return p;
-          }));
+      } catch (e) {
+          setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, status: 'Failed' } : t));
       }
   };
 
-  const renderVariants = (product: any) => {
-      const jsonVariants = product.variants_json;
-      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666', fontSize: '11px'}}>Padrão</span>;
+  // ==========================================
+  // COMPONENTES DE PÁGINA
+  // ==========================================
+
+  // 1. SIDEBAR (Navegação Lateral Fixa)
+  const Sidebar = () => (
+      <aside style={{ width: '60px', backgroundColor: '#0f1422', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', zIndex: 100 }}>
+          <div title="Dashboard" onClick={() => setActivePage('dashboard')} style={{ marginBottom: '20px', cursor: 'pointer', color: activePage === 'dashboard' ? 'white' : '#687489' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          </div>
+          <div title="Preço" onClick={() => setActivePage('price')} style={{ marginBottom: '20px', cursor: 'pointer', color: activePage === 'price' ? '#4CAF50' : '#687489' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '18px' }}>$</span>
+          </div>
+          <div title="Histórico" onClick={() => setActivePage('history')} style={{ marginBottom: '20px', cursor: 'pointer', color: activePage === 'history' ? '#FFC107' : '#687489' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+      </aside>
+  );
+
+  // 2. DASHBOARD (Grid de Cards coloridos igual Hextom)
+  const DashboardPage = () => (
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#333', marginBottom: '20px' }}>Start Editing Products</h1>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+              
+              {/* Card de Preço (Verde) */}
+              <div onClick={() => setActivePage('price')} style={cardStyle('#4CAF50')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>Price</div>
+                      <span style={{ fontSize: '30px', opacity: 0.3, marginLeft: 'auto' }}>$</span>
+                  </div>
+                  <div style={{ color: 'white', fontSize: '12px', opacity: 0.9 }}>Update prices, create sales, set fixed values.</div>
+                  <div style={{ marginTop: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', padding: '5px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Edit ➜</div>
+              </div>
+
+              {/* Card de Título (Roxo) */}
+              <div onClick={() => alert("Em breve")} style={cardStyle('#673AB7')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>Title</div>
+                      <span style={{ fontSize: '30px', opacity: 0.3, marginLeft: 'auto' }}>A</span>
+                  </div>
+                  <div style={{ color: 'white', fontSize: '12px', opacity: 0.9 }}>Edit product names, SEO, capitalization.</div>
+                  <div style={{ marginTop: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', padding: '5px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Edit ➜</div>
+              </div>
+
+              {/* Card de Compare At (Laranja) */}
+              <div onClick={() => setActivePage('price')} style={cardStyle('#FF9800')}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>Compare At</div>
+                      <span style={{ fontSize: '30px', opacity: 0.3, marginLeft: 'auto' }}>⚖️</span>
+                  </div>
+                  <div style={{ color: 'white', fontSize: '12px', opacity: 0.9 }}>Manage original prices for sales visibility.</div>
+                  <div style={{ marginTop: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', padding: '5px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Edit ➜</div>
+              </div>
+
+              {/* Card de Inventário (Azul) */}
+              <div onClick={() => alert("Em breve")} style={cardStyle('#00BCD4')}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>Inventory</div>
+                      <span style={{ fontSize: '30px', opacity: 0.3, marginLeft: 'auto' }}>📦</span>
+                  </div>
+                  <div style={{ color: 'white', fontSize: '12px', opacity: 0.9 }}>Manage stock levels and tracking.</div>
+                  <div style={{ marginTop: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', padding: '5px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Edit ➜</div>
+              </div>
+          </div>
+      </div>
+  );
+
+  // 3. PÁGINA DE PREÇO (EDITOR COMPLETO)
+  const PriceEditorPage = () => {
+      const [filterName, setFilterName] = useState('');
+      const [actionType, setActionType] = useState('update_price'); // 'update_price' ou 'apply_sale'
+      const [operation, setOperation] = useState('increase');
+      const [value, setValue] = useState('');
+      const [unit, setUnit] = useState('percentage');
+
+      const handleStart = () => {
+          if(!value) return alert("Digite um valor");
+          
+          let tool = actionType;
+          let params: any = { search_term: filterName };
+
+          if (tool === 'update_price') {
+              params = { ...params, operation, value: parseFloat(value), type: unit };
+          } else {
+              params = { ...params, mode: 'sale', discount_value: parseFloat(value), discount_type: unit };
+          }
+
+          startTask(tool, params, `${tool === 'apply_sale' ? 'Sale' : 'Update Price'} (${value}${unit === 'percentage' ? '%' : ''})`);
+      };
+
       return (
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
-              {jsonVariants.map((v: any, i: number) => {
-                  const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
-                  return (
-                      <div key={i} onClick={() => handleEditVariant(product.id, i, v.price || product.price)} 
-                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', cursor: 'pointer', minWidth: '60px', textAlign: 'center' }}
-                        title="Clique para editar preço desta variante">
-                          <div style={{ fontWeight: 'bold' }}>{name}</div>
-                          <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+              {/* Header da Ferramenta */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#4CAF50', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '20px' }}>$</div>
+                  <div>
+                      <h1 style={{ margin: 0, fontSize: '18px', color: '#333' }}>Bulk Edit Price</h1>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Update product price and compare-at price</div>
+                  </div>
+              </div>
+
+              {/* STEP 1: FILTRO */}
+              <div style={stepContainerStyle}>
+                  <div style={stepHeaderStyle}>
+                      <span style={{ fontWeight: 'bold' }}>Step 1:</span> Filter Products
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Product Title contains:</label>
+                      <input 
+                          type="text" 
+                          value={filterName}
+                          onChange={(e) => setFilterName(e.target.value)}
+                          placeholder="All products (leave blank)" 
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }} 
+                      />
+                      <div style={{ fontSize: '11px', color: '#888', marginTop: '5px' }}>
+                          Preview: {filterName ? 'Filtering by name...' : `All ${storeStats.products} products will be edited.`}
                       </div>
-                  );
-              })}
+                  </div>
+              </div>
+
+              {/* STEP 2: AÇÃO */}
+              <div style={stepContainerStyle}>
+                  <div style={stepHeaderStyle}>
+                      <span style={{ fontWeight: 'bold' }}>Step 2:</span> Choose Editing Action
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                      <div style={{ marginBottom: '15px' }}>
+                          <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>I want to:</label>
+                          <select 
+                              value={actionType} 
+                              onChange={(e) => setActionType(e.target.value)}
+                              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', background: 'white' }}>
+                              <option value="update_price">Adjust Base Price (Reajuste)</option>
+                              <option value="apply_sale">Create Sale / Promotion (De/Por)</option>
+                          </select>
+                      </div>
+
+                      {actionType === 'update_price' && (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                              <select value={operation} onChange={(e) => setOperation(e.target.value)} style={{ flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                  <option value="increase">Increase (+)</option>
+                                  <option value="decrease">Decrease (-)</option>
+                                  <option value="set_fixed">Set Fixed (=)</option>
+                              </select>
+                              <input type="number" value={value} onChange={(e) => setValue(e.target.value)} placeholder="10" style={{ flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }} />
+                              <select value={unit} onChange={(e) => setUnit(e.target.value)} style={{ flex: 0.5, padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                  <option value="percentage">%</option>
+                                  <option value="fixed">R$</option>
+                              </select>
+                          </div>
+                      )}
+
+                      {actionType === 'apply_sale' && (
+                          <div style={{ padding: '15px', background: '#fff3e0', border: '1px solid #ffe0b2', borderRadius: '4px' }}>
+                              <div style={{ fontSize: '13px', marginBottom: '10px', color: '#e65100' }}>
+                                  This will move the current price to "Compare At" and apply a discount.
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span>Decrease price by</span>
+                                  <input type="number" value={value} onChange={(e) => setValue(e.target.value)} placeholder="10" style={{ width: '80px', padding: '8px', border: '1px solid #ddd' }} />
+                                  <select value={unit} onChange={(e) => setUnit(e.target.value)} style={{ padding: '8px', border: '1px solid #ddd' }}>
+                                      <option value="percentage">%</option>
+                                      <option value="fixed">R$</option>
+                                  </select>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+
+              {/* BOTÃO START */}
+              <button 
+                  onClick={handleStart}
+                  style={{ 
+                      backgroundColor: '#3f51b5', color: 'white', padding: '15px 30px', border: 'none', borderRadius: '4px', 
+                      fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', float: 'right', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' 
+                  }}>
+                  START BULK EDITING NOW
+              </button>
           </div>
       );
   };
 
-  const hextomCards = [
-    { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
-    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
-    { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
-    { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
-    { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
-    { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
-    { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
-    { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
-    { title: "Weight", desc: "Shipping calc", color: "#E91E63", icon: "⚖️" }, 
-    { title: "Variants", desc: "Options", color: "#2196F3", icon: "🔢" }, 
-    { title: "Availability", desc: "Visibility", color: "#FFC107", icon: "👁️" }, 
-    { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } 
-  ];
-
-  const handleSend = async (text: string) => {
-    if (!text || !storeId) return;
-    setMessages(prev => [...prev, { role: 'user', text }]);
-    setInputValue('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, store_id: storeId }) 
-      });
-      const data = await response.json();
-      const suggestions = data.suggestions || [];
-
-      setMessages(prev => [...prev, { 
-          role: 'ai', 
-          text: data.response, 
-          type: data.action, 
-          data: data.data,
-          suggestions: suggestions,
-          command: data.command 
-      }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'ai', text: 'Erro de conexão com o servidor.' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const executeCommand = (command: any) => {
-      alert(`🚀 COMANDO APROVADO!\n\n${command.type} -> ${JSON.stringify(command.params)}`);
-  };
+  // 4. PÁGINA DE HISTÓRICO (TASKS)
+  const HistoryPage = () => (
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#333', marginBottom: '20px' }}>Tasks / History</h1>
+          
+          <div style={{ background: 'white', border: '1px solid #ddd', borderRadius: '4px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                      <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd', textAlign: 'left' }}>
+                          <th style={{ padding: '12px', fontSize: '12px', color: '#666' }}>Created Time</th>
+                          <th style={{ padding: '12px', fontSize: '12px', color: '#666' }}>Status</th>
+                          <th style={{ padding: '12px', fontSize: '12px', color: '#666' }}>Editing</th>
+                          <th style={{ padding: '12px', fontSize: '12px', color: '#666' }}>Edited Products</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {tasks.map(task => (
+                          <tr key={task.id} style={{ borderBottom: '1px solid #eee' }}>
+                              <td style={{ padding: '15px', fontSize: '13px' }}>{task.time}</td>
+                              <td style={{ padding: '15px' }}>
+                                  <span style={{ 
+                                      padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold',
+                                      background: task.status === 'Running' ? '#e3f2fd' : (task.status === 'Finished' ? '#e8f5e9' : '#ffebee'),
+                                      color: task.status === 'Running' ? '#2196f3' : (task.status === 'Finished' ? '#4caf50' : '#f44336')
+                                  }}>
+                                      {task.status === 'Running' ? '🔄 Running' : task.status}
+                                  </span>
+                              </td>
+                              <td style={{ padding: '15px', fontSize: '13px' }}>{task.details}</td>
+                              <td style={{ padding: '15px', fontSize: '13px' }}>{task.items}</td>
+                          </tr>
+                      ))}
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  );
 
   // ==========================================
-  // 4. RENDERIZAÇÃO
+  // RENDERIZAÇÃO PRINCIPAL
   // ==========================================
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
-      
-      {/* SIDEBAR ESQUERDA */}
-      <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Roboto, sans-serif', backgroundColor: '#f4f6f8' }}>
+        <Sidebar />
         
-        <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
-        
-        {/* CARD DE STATUS */}
-        <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {isSyncing ? '' : <span style={{ width: '8px', height: '8px', backgroundColor: '#34A853', borderRadius: '50%', display: 'inline-block' }}></span>}
-                {isSyncing ? 'SYNC...' : 'ONLINE'}
-              </span>
-            </div>
-            
-            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
-              <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
-            </div>
-
-            <div style={{ borderTop: '1px solid #444746', paddingTop: '12px', marginBottom: '12px' }}>
-                <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
-                <div style={{ fontSize: '14px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {storeStats.name}
-                </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
-                    <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.products}</div>
-                </div>
-                <div style={{ width: '1px', backgroundColor: '#444746', height: '25px' }}></div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>CATEGORIAS</div>
-                    <div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.categories}</div>
-                </div>
-            </div>
-        </div>
-
-        {/* MENU */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
-            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
-            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
-            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
-            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💬</span> Fale Conosco</div>
-        </nav>
-      </aside>
-
-      {/* ÁREA CENTRAL */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
-        
-        {activeTab === 'dashboard' && (
-            <>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ width: '100%', maxWidth: '700px' }}>
-                        {messages.map((m, i) => (
-                        <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                            <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
-                            <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '90%', textAlign: 'left' }}>
-                                <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
-                                {m.command && (
-                                    <div style={{ backgroundColor: '#1E1F20', border: '1px solid #4285F4', borderRadius: '12px', padding: '20px', marginTop: '15px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO IDENTIFICADA</span></div>
-                                        <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '20px', padding: '10px', background: '#282A2C', borderRadius: '8px' }}>
-                                            {m.command.type === 'update_price' ? `Mudar Preço: ${m.command.params.operation.toUpperCase()} | Valor: ${m.command.params.value}` : `Editar Título: ${m.command.params.action}`}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button onClick={() => executeCommand(m.command)} style={{ flex: 1, padding: '12px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ APROVAR</button>
-                                            <button onClick={() => alert("Cancelado")} style={{ flex: 1, padding: '12px', background: 'transparent', color: '#F44336', border: '1px solid #F44336', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>❌ CANCELAR</button>
-                                        </div>
-                                    </div>
-                                )}
-                                {m.suggestions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>{m.suggestions.map((s: string, idx: number) => <button key={idx} onClick={() => handleSend(s)} style={{ background: 'transparent', border: '1px solid #4285F4', color: '#A8C7FA', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>{s}</button>)}</div>}
-                                {m.type === 'preview_list' && <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />}
-                            </div>
-                        </div>
-                        ))}
-                        {isLoading && <div style={{ textAlign: 'left', marginLeft: '20px', color: '#888' }}>NewSkin AI está pensando...</div>}
-                        <div ref={chatEndRef} />
-                    </div>
-                </div>
-                <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                    <div style={{ position: 'relative', width: '100%', maxWidth: '700px' }}>
-                        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)} placeholder="Pergunte à IA..." disabled={isLoading} style={{ width: '100%', padding: '22px 25px', borderRadius: '100px', border: '1px solid #444746', backgroundColor: '#1E1F20', color: '#E3E3E3', outline: 'none' }} />
-                        <button onClick={() => handleSend(inputValue)} style={{ position: 'absolute', right: '10px', top: '10px', backgroundColor: '#E3E3E3', color: '#131314', border: 'none', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer' }}>➤</button>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* PRODUTOS */}
-        {activeTab === 'products' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo</h1>{hasChanges && <button style={{ background: '#34A853', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px' }}>💾 Salvar</button>}</div>
-                    <div style={{ display: 'flex', gap: '10px' }}><input placeholder="🔍 Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} /><button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none' }}>Filtrar</button></div>
-                </div>
-                <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
-                    <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
-                            <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
-                        </thead>
-                        <tbody>
-                            {/* AQUI ESTÁ A CORREÇÃO: USAMOS loadingProducts PARA MOSTRAR CARREGAMENTO */}
-                            {loadingProducts ? (
-                                <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
-                            ) : (
-                                productsList.map((p) => (
-                                    <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
-                                        <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
-                                        <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
-                                        <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
-                                        <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        )}
-      </main>
-
-      {/* SIDEBAR DIREITA */}
-      {activeTab === 'dashboard' && (
-        <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {hextomCards.map((card, index) => (
-                <button key={index} onClick={() => handleSend(`Executar ferramenta: ${card.title}`)} style={{ padding: '16px', backgroundColor: '#1E1F20', border: `1px solid ${card.color}40`, borderRadius: '16px', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden', minHeight: '120px' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
-                    <div style={{ fontSize: '24px' }}>{card.icon}</div>
-                    <div><div style={{ fontWeight: '600', fontSize: '14px', color: '#E3E3E3' }}>{card.title}</div><div style={{ fontSize: '11px', color: '#8E918F' }}>{card.desc}</div></div>
-                </button>
-            ))}
-            </div>
-        </aside>
-      )}
-
+        <main style={{ flex: 1, padding: '30px' }}>
+            {activePage === 'dashboard' && <DashboardPage />}
+            {activePage === 'price' && <PriceEditorPage />}
+            {activePage === 'history' && <HistoryPage />}
+        </main>
     </div>
   );
 }
+
+// --- ESTILOS AUXILIARES (CSS-in-JS simples) ---
+const cardStyle = (color: string) => ({
+    backgroundColor: color,
+    borderRadius: '8px',
+    padding: '24px',
+    cursor: 'pointer',
+    color: 'white',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    transition: 'transform 0.2s',
+    minHeight: '180px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'space-between'
+});
+
+const stepContainerStyle = {
+    background: 'white',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    marginBottom: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+};
+
+const stepHeaderStyle = {
+    padding: '15px 20px',
+    background: '#f9fafb',
+    borderBottom: '1px solid #ddd',
+    fontSize: '14px',
+    color: '#333'
+};
