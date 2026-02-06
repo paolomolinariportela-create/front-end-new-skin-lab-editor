@@ -14,13 +14,13 @@ export default function NewSkinApp() {
   
   // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false); 
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
   // Stats
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
-  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com informações sobre seu estoque.' }]);
+  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso consultar informações do seu estoque para você.' }]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -68,7 +68,7 @@ export default function NewSkinApp() {
 
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
                 if(isSyncing) {
-                   setMessages(prev => [...prev, { role: 'ai', text: `Conectado! ${data.total_produtos_banco} produtos prontos para consulta.` }]);
+                   setMessages(prev => [...prev, { role: 'ai', text: `Conectado! ${data.total_produtos_banco} produtos no banco de dados.` }]);
                    setSyncProgress(100);
                    setIsSyncing(false); 
                 }
@@ -185,8 +185,9 @@ export default function NewSkinApp() {
     }
   };
 
+  // CORREÇÃO: Usamos a variável 'command' no alerta para satisfazer o TypeScript
   const executeCommand = (command: any) => {
-      alert(`🚀 Ação bloqueada.\n\nModo leitura ativo: A IA não pode executar alterações.`);
+      alert(`🚀 AÇÃO BLOQUEADA: ${command?.type || 'Desconhecida'}\n\nA IA está em modo 'Apenas Leitura' e não pode executar alterações.`);
   };
 
   // ==========================================
@@ -299,7 +300,7 @@ export default function NewSkinApp() {
                             <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
                         </thead>
                         <tbody>
-                            {/* LÓGICA DE CARREGAMENTO */}
+                            {/* AQUI ESTÁ A CORREÇÃO: USAMOS loadingProducts PARA MOSTRAR CARREGAMENTO */}
                             {loadingProducts ? (
                                 <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
                             ) : (
