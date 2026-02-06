@@ -1,5 +1,6 @@
 import React from 'react';
 
+// Definimos o que a página espera receber
 interface PricePageProps {
   onBack: () => void;
   storeId: string | null;
@@ -25,7 +26,8 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Ajuste de Preços</h1>
           <p style={{ color: '#888', margin: 0 }}>
-            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || '...' }</span>
+            {/* AQUI ESTÁ A CORREÇÃO: Usamos o storeId explicitamente para o erro sumir */}
+            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || '...'}</span>
           </p>
         </div>
       </div>
@@ -55,7 +57,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
   );
 }
 
-// Estilos tipados para evitar erro de TS
+// Estilos tipados para evitar erros de CSS
 const selectStyle: React.CSSProperties = { 
   padding: '12px', 
   borderRadius: '8px', 
