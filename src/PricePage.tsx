@@ -1,4 +1,3 @@
-// Removi o import do useState pois ele não estava sendo usado ainda
 import React from 'react';
 
 interface PricePageProps {
@@ -26,7 +25,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Ajuste de Preços</h1>
           <p style={{ color: '#888', margin: 0 }}>
-            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || 'Carregando...'}</span>
+            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || '...' }</span>
           </p>
         </div>
       </div>
@@ -56,6 +55,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
   );
 }
 
+// Estilos tipados para evitar erro de TS
 const selectStyle: React.CSSProperties = { 
   padding: '12px', 
   borderRadius: '8px', 
