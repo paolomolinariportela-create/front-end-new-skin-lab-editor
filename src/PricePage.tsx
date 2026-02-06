@@ -7,7 +7,8 @@ interface PricePageProps {
 
 export default function PricePage({ storeId }: PricePageProps) {
   return (
-    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto', color: '#E3E3E3' }}>
+    // ALTERAÇÃO AQUI: Mudamos maxWidth para '100%' e removemos o margin auto
+    <div style={{ padding: '40px', width: '100%', height: '100%', color: '#E3E3E3', boxSizing: 'border-box' }}>
       
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #333', paddingBottom: '20px' }}>
@@ -29,7 +30,8 @@ export default function PricePage({ storeId }: PricePageProps) {
         </h3>
         <p style={{ color: '#888', fontSize: '14px', marginBottom: '20px' }}>Selecione os produtos que deseja reajustar.</p>
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#282A2C', padding: '20px', borderRadius: '12px' }}>
+        {/* Container dos inputs esticado */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#282A2C', padding: '20px', borderRadius: '12px', flexWrap: 'wrap' }}>
           <select style={selectStyle}>
             <option>Título do Produto</option>
             <option>SKU</option>
@@ -38,7 +40,8 @@ export default function PricePage({ storeId }: PricePageProps) {
             <option>Contém</option>
             <option>É igual a</option>
           </select>
-          <input type="text" placeholder="Valor..." style={{ ...selectStyle, flex: 1, background: '#131314' }} />
+          {/* O input flex: 1 vai fazer ele ocupar todo o espaço sobrando da tela larga */}
+          <input type="text" placeholder="Valor..." style={{ ...selectStyle, flex: 1, minWidth: '200px', background: '#131314' }} />
           <button style={{ padding: '12px 30px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
             Filtrar
           </button>
@@ -51,7 +54,7 @@ export default function PricePage({ storeId }: PricePageProps) {
           Passo 2: Configurar Reajuste
         </h3>
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
           <select style={selectStyle}>
             <option>Aumentar</option>
             <option>Diminuir</option>
@@ -62,7 +65,11 @@ export default function PricePage({ storeId }: PricePageProps) {
             <option>%</option>
             <option>R$</option>
           </select>
-          <button style={{ padding: '12px 30px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginLeft: 'auto' }}>
+          
+          {/* Empurra o botão para a direita extrema */}
+          <div style={{ flex: 1 }}></div> 
+
+          <button style={{ padding: '12px 30px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
             Aplicar em Massa
           </button>
         </div>
