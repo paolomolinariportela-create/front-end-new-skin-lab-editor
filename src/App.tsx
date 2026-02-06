@@ -14,11 +14,11 @@ export default function NewSkinApp() {
   
   // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false); // <--- AGORA VAMOS USAR ISSO
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Stats (Agora usamos esses dados no Card de Status)
+  // Stats
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
   const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com preços, títulos ou dúvidas sobre seu estoque.' }]);
   const [inputValue, setInputValue] = useState('');
@@ -60,7 +60,6 @@ export default function NewSkinApp() {
       fetch(`${BACKEND_URL}/admin/status/${id}`)
         .then(res => res.json())
         .then(data => {
-            // AQUI O FRONTEND PEGA O NOME QUE O BACKEND ENVIOU
             setStoreStats({
                 name: data.loja_nome || `Loja ${id}`,
                 products: data.total_produtos_banco || 0,
@@ -196,13 +195,12 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* --- SIDEBAR ESQUERDA (ATUALIZADA) --- */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         
-        {/* LOGO */}
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
         
-        {/* CARD DE STATUS ATUALIZADO (COM NOME E CONTAGEM) */}
+        {/* CARD DE STATUS */}
         <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
@@ -212,12 +210,10 @@ export default function NewSkinApp() {
               </span>
             </div>
             
-            {/* Barra de Progresso */}
             <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
             </div>
 
-            {/* Nome da Loja */}
             <div style={{ borderTop: '1px solid #444746', paddingTop: '12px', marginBottom: '12px' }}>
                 <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
                 <div style={{ fontSize: '14px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -225,7 +221,6 @@ export default function NewSkinApp() {
                 </div>
             </div>
 
-            {/* Contadores (Produtos e Categorias) */}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                     <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div>
@@ -239,46 +234,19 @@ export default function NewSkinApp() {
             </div>
         </div>
 
-        {/* MENU NOVO (REORGANIZADO) */}
+        {/* MENU */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-            
-            {/* 1. Dashboard */}
-            <div onClick={() => setActiveTab('dashboard')} 
-                 style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' }}>
-                 <span>✨</span> Dashboard
-            </div>
-            
-            {/* 2. Produtos */}
-            <div onClick={() => setActiveTab('products')} 
-                 style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' }}>
-                 <span>📦</span> Produtos
-            </div>
-            
-            {/* 3. Histórico */}
-            <div onClick={() => alert("Em breve: Histórico de alterações")} 
-                 style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' }}>
-                 <span>📜</span> Histórico
-            </div>
-
-            {/* 4. Planos */}
-            <div onClick={() => alert("Em breve: Gerenciamento de Planos")} 
-                 style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' }}>
-                 <span>💎</span> Planos
-            </div>
-
-            {/* 5. Fale Conosco */}
-            <div onClick={() => alert("Abrir Suporte WhatsApp/Email")} 
-                 style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' }}>
-                 <span>💬</span> Fale Conosco
-            </div>
-
+            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
+            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💬</span> Fale Conosco</div>
         </nav>
       </aside>
 
       {/* ÁREA CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
-        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
             <>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -331,17 +299,22 @@ export default function NewSkinApp() {
                             <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
                         </thead>
                         <tbody>
-                            {productsList.map((p) => (
-                                <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
-                                    <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
-                                    <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
-                                    <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
-                                    <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
-                                    <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
-                                    <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
-                                    <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
-                                </tr>
-                            ))}
+                            {/* AQUI ESTÁ A CORREÇÃO: USAMOS loadingProducts PARA MOSTRAR CARREGAMENTO */}
+                            {loadingProducts ? (
+                                <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
+                            ) : (
+                                productsList.map((p) => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                        <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
+                                        <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
+                                        <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
