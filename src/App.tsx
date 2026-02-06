@@ -1,411 +1,297 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ==========================================
 // CONFIGURAÇÃO
 // ==========================================
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
-// Definição dos Cards (Cores vibrantes estilo Hextom)
-const HEXTOM_CARDS = [
-    { id: 'price', title: "Price", desc: "Update prices, sales", color: "#43A047", icon: "💲" }, // Verde
-    { id: 'compare', title: "Compare At", desc: "Manage sales price", color: "#FB8C00", icon: "⚖️" }, // Laranja
-    { id: 'inventory', title: "Inventory", desc: "Shipping & Stock", color: "#00ACC1", icon: "📦" }, // Ciano
-    { id: 'tag', title: "Tag", desc: "Manage tags", color: "#00897B", icon: "🏷️" }, // Teal
-    { id: 'title', title: "Title", desc: "SEO & Names", color: "#5E35B1", icon: "📝" }, // Roxo
-    { id: 'desc', title: "Description", desc: "HTML Content", color: "#757575", icon: "📄" }, // Cinza
-    { id: 'type', title: "Product Type", desc: "Categories", color: "#E53935", icon: "🗂️" }, // Vermelho
-    { id: 'vendor', title: "Vendor", desc: "Brands", color: "#F4511E", icon: "🏭" }, // Laranja Escuro
-    { id: 'weight', title: "Weight", desc: "Shipping calc", color: "#D81B60", icon: "⚖️" }, // Rosa
-    { id: 'variants', title: "Variants", desc: "Options", color: "#1E88E5", icon: "🔢" }, // Azul
-    { id: 'availability', title: "Availability", desc: "Visibility", color: "#FDD835", icon: "👁️", textColor: '#333' }, // Amarelo
-    { id: 'template', title: "Template", desc: "Layouts", color: "#6D4C41", icon: "📐" } // Marrom
-];
-
 export default function NewSkinApp() {
-  // --- ESTADOS ---
-  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'editor', 'history', 'products'
-  const [selectedTool, setSelectedTool] = useState<any>(null); // Qual card foi clicado?
-  
+  // ==========================================
+  // 1. ESTADOS
+  // ==========================================
+  const [activeTab, setActiveTab] = useState('dashboard'); 
   const [storeId, setStoreId] = useState<string | null>(null);
-  const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0 });
   const [isSyncing, setIsSyncing] = useState(true);
-  
-  // Estados do Editor (Wizard)
-  const [filterName, setFilterName] = useState('');
-  const [actionOperation, setActionOperation] = useState('increase');
-  const [actionValue, setActionValue] = useState('');
-  const [actionUnit, setActionUnit] = useState('percentage');
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  // Lista de Produtos (Tabela)
+  const [syncProgress, setSyncProgress] = useState(0);
+   
+  // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // --- INICIALIZAÇÃO ---
+  // Stats
+  const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
+  
+  // (ESTADOS DA IA REMOVIDOS AQUI: messages, inputValue, isLoading, chatEndRef)
+
+  // ==========================================
+  // 2. LÓGICA DE CARREGAMENTO (MANTIDA)
+  // ==========================================
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('store_id');
+
     if (id) {
       setStoreId(id);
       checkStoreStatus(id);
+    } else {
+      setIsSyncing(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'products' && storeId) {
+        fetchProducts(storeId);
+    }
+  }, [activeTab, storeId]);
 
   const checkStoreStatus = (id: string) => {
       fetch(`${BACKEND_URL}/admin/status/${id}`)
         .then(res => res.json())
         .then(data => {
-            setStoreStats({ name: data.loja_nome || `Loja ${id}`, products: data.total_produtos_banco || 0 });
-            if (data.ultimo_erro === "SYNC_CONCLUIDO") setIsSyncing(false);
-            else fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' });
-        });
+            setStoreStats({
+                name: data.loja_nome || `Loja ${id}`,
+                products: data.total_produtos_banco || 0,
+                categories: data.total_categorias_banco || 0
+            });
+
+            if (data.ultimo_erro === "SYNC_CONCLUIDO") {
+                if(isSyncing) {
+                   setSyncProgress(100);
+                   setIsSyncing(false); 
+                }
+            } else {
+                setSyncProgress(old => old < 90 ? old + 10 : old);
+                fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
+            }
+        })
+        .catch(() => fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }));
   };
 
-  const fetchProducts = async () => {
-    if(!storeId) return;
-    const res = await fetch(`${BACKEND_URL}/products/${storeId}?limit=50`);
-    const data = await res.json();
-    setProductsList(data);
-  };
-
-  // --- NAVEGAÇÃO ---
-  const handleCardClick = (tool: any) => {
-      setSelectedTool(tool);
-      setActiveView('editor');
-      // Resetar formulário
-      setFilterName('');
-      setActionValue('');
-  };
-
-  const handleBack = () => {
-      setActiveView('dashboard');
-      setSelectedTool(null);
-  };
-
-  // --- EXECUÇÃO (SEM IA) ---
-  const handleExecute = async () => {
-      if (!storeId || !selectedTool) return;
-      if (!actionValue) return alert("Por favor, digite um valor.");
-
-      setIsProcessing(true);
-
-      // Mapeia a lógica do formulário visual para o comando do backend
-      let toolType = 'update_price';
-      let params: any = { search_term: filterName };
-
-      // Se for a ferramenta de "Compare At" ou modo Promoção
-      if (selectedTool.id === 'compare' || (selectedTool.id === 'price' && actionOperation === 'sale')) {
-          toolType = 'apply_sale';
-          params = {
-              ...params,
-              mode: 'sale',
-              discount_value: parseFloat(actionValue),
-              discount_type: actionUnit
-          };
-      } else {
-          // Modo Padrão (Preço)
-          toolType = 'update_price';
-          params = {
-              ...params,
-              operation: actionOperation,
-              value: parseFloat(actionValue),
-              type: actionUnit
-          };
-      }
-
+  const fetchProducts = async (id: string, search = "") => {
+      setLoadingProducts(true);
       try {
-          const response = await fetch(`${BACKEND_URL}/execute_tool`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ store_id: storeId, tool_type: toolType, params: params })
-          });
+          let url = `${BACKEND_URL}/products/${id}?limit=100`;
+          if (search) url += `&search=${search}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          setProductsList(data);
+      } catch (error) { console.error(error); } finally { setLoadingProducts(false); }
+  };
 
-          if (response.ok) {
-              alert("✅ Tarefa iniciada com sucesso!");
-              setActiveView('history'); // Vai para o histórico ver o progresso
-          } else {
-              alert("❌ Erro ao iniciar tarefa.");
-          }
-      } catch (e) {
-          alert("Erro de conexão.");
-      } finally {
-          setIsProcessing(false);
+  useEffect(() => {
+    if (!storeId || !isSyncing) return;
+    const interval = setInterval(() => checkStoreStatus(storeId), 5000);
+    return () => clearInterval(interval);
+  }, [storeId, isSyncing]);
+
+  // ==========================================
+  // 3. FUNÇÕES UX (PRODUTOS)
+  // ==========================================
+  const handleInputChange = (id: string, field: string, value: any) => {
+      setHasChanges(true);
+      setProductsList(prevList => prevList.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
+      const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
+      if (newPrice) {
+          setHasChanges(true);
+          setProductsList(prevList => prevList.map(p => {
+              if (p.id === productId) {
+                  const updatedVariants = [...p.variants_json];
+                  updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], price: parseFloat(newPrice) };
+                  return { ...p, variants_json: updatedVariants };
+              }
+              return p;
+          }));
       }
   };
 
-  // ==========================================
-  // COMPONENTES DE PÁGINA
-  // ==========================================
-
-  // 1. DASHBOARD (GRID DE CARDS)
-  const DashboardView = () => (
-      <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ marginBottom: '30px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>Ferramentas de Edição em Massa</h1>
-              <p style={{ color: '#666' }}>Selecione uma ferramenta para começar a editar seus {storeStats.products} produtos.</p>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-              {HEXTOM_CARDS.map((card) => (
-                  <div 
-                    key={card.id} 
-                    onClick={() => handleCardClick(card)}
-                    style={{ 
-                        backgroundColor: card.color, 
-                        color: card.textColor || 'white',
-                        borderRadius: '8px', 
-                        padding: '25px', 
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                        transition: 'transform 0.2s',
-                        minHeight: '160px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                  >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '28px' }}>{card.icon}</span>
-                          <span style={{ opacity: 0.8, fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>Editar</span>
-                      </div>
-                      <div>
-                          <h3 style={{ margin: '10px 0 5px 0', fontSize: '18px' }}>{card.title}</h3>
-                          <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>{card.desc}</p>
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-  );
-
-  // 2. EDITOR (WIZARD STEP-BY-STEP)
-  const EditorView = () => {
-      // Se não for ferramenta de preço, mostra aviso
-      if (selectedTool.id !== 'price' && selectedTool.id !== 'compare') {
-          return (
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                  <h2>🚧 Em desenvolvimento</h2>
-                  <p>A ferramenta {selectedTool.title} estará disponível em breve.</p>
-                  <button onClick={handleBack} style={{ marginTop: '20px', padding: '10px 20px' }}>Voltar</button>
-              </div>
-          );
-      }
-
+  const renderVariants = (product: any) => {
+      const jsonVariants = product.variants_json;
+      if (!jsonVariants || jsonVariants.length === 0) return <span style={{color: '#666', fontSize: '11px'}}>Padrão</span>;
       return (
-          <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
-                  <button onClick={handleBack} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>⬅</button>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '5px', backgroundColor: selectedTool.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{selectedTool.icon}</div>
-                  <h1 style={{ margin: 0, fontSize: '22px', color: '#333' }}>Editar {selectedTool.title}</h1>
-              </div>
-
-              {/* Step 1: Filtro */}
-              <div style={cardStyle}>
-                  <div style={cardHeaderStyle}>
-                      <span style={{ fontWeight: 'bold', color: '#333' }}>PASSO 1:</span> Filtrar Produtos
-                  </div>
-                  <div style={{ padding: '20px' }}>
-                      <label style={labelStyle}>Título do produto contém:</label>
-                      <input 
-                          type="text" 
-                          value={filterName} 
-                          onChange={e => setFilterName(e.target.value)} 
-                          placeholder="Ex: Camiseta (Deixe vazio para editar TODOS)"
-                          style={inputStyle} 
-                      />
-                      <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-                          {filterName ? `Editando produtos com "${filterName}" no nome.` : `Editando TODOS os ${storeStats.products} produtos da loja.`}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
+              {jsonVariants.map((v: any, i: number) => {
+                  const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
+                  return (
+                      <div key={i} onClick={() => handleEditVariant(product.id, i, v.price || product.price)} 
+                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', cursor: 'pointer', minWidth: '60px', textAlign: 'center' }}
+                        title="Clique para editar preço desta variante">
+                          <div style={{ fontWeight: 'bold' }}>{name}</div>
+                          <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
                       </div>
-                  </div>
-              </div>
-
-              {/* Step 2: Ação */}
-              <div style={cardStyle}>
-                  <div style={cardHeaderStyle}>
-                      <span style={{ fontWeight: 'bold', color: '#333' }}>PASSO 2:</span> Configurar Alteração
-                  </div>
-                  <div style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                          <div style={{ flex: 1 }}>
-                              <label style={labelStyle}>Ação</label>
-                              <select value={actionOperation} onChange={e => setActionOperation(e.target.value)} style={inputStyle}>
-                                  <option value="increase">Aumentar Preço (+)</option>
-                                  <option value="decrease">Diminuir Preço (-)</option>
-                                  <option value="sale">Criar Promoção (De/Por)</option>
-                                  <option value="set_fixed">Definir Valor Fixo (=)</option>
-                              </select>
-                          </div>
-                          <div style={{ flex: 1 }}>
-                              <label style={labelStyle}>Valor</label>
-                              <input type="number" value={actionValue} onChange={e => setActionValue(e.target.value)} placeholder="10" style={inputStyle} />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                              <label style={labelStyle}>Unidade</label>
-                              <select value={actionUnit} onChange={e => setActionUnit(e.target.value)} style={inputStyle}>
-                                  <option value="percentage">% (Porcentagem)</option>
-                                  <option value="fixed">R$ (Reais)</option>
-                              </select>
-                          </div>
-                      </div>
-                      
-                      {actionOperation === 'sale' && (
-                          <div style={{ marginTop: '15px', padding: '15px', background: '#e3f2fd', borderRadius: '4px', color: '#0d47a1', fontSize: '13px' }}>
-                              ℹ️ <b>Modo Promoção:</b> O preço atual será movido para "Preço Original" (De) e o novo preço com desconto será aplicado no "Preço de Venda" (Por).
-                          </div>
-                      )}
-                  </div>
-              </div>
-
-              {/* Botão Final */}
-              <div style={{ textAlign: 'right' }}>
-                  <button 
-                      onClick={handleExecute}
-                      disabled={isProcessing}
-                      style={{ 
-                          backgroundColor: selectedTool.color, 
-                          color: 'white', 
-                          padding: '15px 40px', 
-                          fontSize: '16px', 
-                          fontWeight: 'bold', 
-                          border: 'none', 
-                          borderRadius: '6px', 
-                          cursor: isProcessing ? 'wait' : 'pointer',
-                          opacity: isProcessing ? 0.7 : 1,
-                          boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
-                      }}>
-                      {isProcessing ? 'Processando...' : 'INICIAR EDIÇÃO EM MASSA'}
-                  </button>
-              </div>
+                  );
+              })}
           </div>
       );
   };
 
-  // 3. HISTÓRICO (TASKS)
-  const HistoryView = () => (
-      <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '20px' }}>Histórico de Tarefas</h1>
-          <div style={cardStyle}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
-                      <tr>
-                          <th style={thStyle}>Data</th>
-                          <th style={thStyle}>Status</th>
-                          <th style={thStyle}>Detalhes</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {/* Simulação - Futuramente virá do banco */}
-                      <tr>
-                          <td style={tdStyle}>Agora</td>
-                          <td style={tdStyle}><span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>RODANDO</span></td>
-                          <td style={tdStyle}>Atualização de Preço iniciada...</td>
-                      </tr>
-                  </tbody>
-              </table>
-          </div>
-          <button onClick={() => setActiveView('dashboard')} style={{ marginTop: '20px', padding: '10px 20px' }}>Voltar ao Dashboard</button>
-      </div>
-  );
+  // ==========================================
+  // CONFIGURAÇÃO DOS CARDS (Hextom Style)
+  // ==========================================
+  const hextomCards = [
+    { title: "Price", desc: "Update prices, create sales (De/Por)", color: "#4CAF50", icon: "💲" },
+    { title: "Title", desc: "SEO, Prefixes, Suffixes & Replace", color: "#673AB7", icon: "📝" }, 
+    { title: "Inventory", desc: "Manage Stock levels", color: "#00BCD4", icon: "📦" }, 
+    { title: "Compare At", desc: "Manage original prices", color: "#FF9800", icon: "⚖️" }, 
+    { title: "Description", desc: "HTML Content editor", color: "#9E9E9E", icon: "📄" }, 
+    { title: "Tag", desc: "Add or remove product tags", color: "#009688", icon: "🏷️" }, 
+    { title: "Product Type", desc: "Organize Categories", color: "#F44336", icon: "🗂️" }, 
+    { title: "Vendor", desc: "Manage Brands", color: "#FF5722", icon: "🏭" }, 
+    { title: "Variants", desc: "Edit options in bulk", color: "#2196F3", icon: "🔢" }, 
+  ];
+
+  // Função temporária para simular o clique no card (já que removemos a IA)
+  const handleCardClick = (cardTitle: string) => {
+      alert(`Em breve: Abrir ferramenta ${cardTitle} em modo visual (sem IA).`);
+      // AQUI NO FUTURO: Abrirá o Modal/Página da ferramenta específica
+  };
+
 
   // ==========================================
-  // RENDERIZAÇÃO PRINCIPAL
+  // 4. RENDERIZAÇÃO PRINCIPAL
   // ==========================================
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', Roboto, sans-serif", backgroundColor: '#f6f6f7', color: '#333' }}>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
+      
+      {/* --- SIDEBAR ESQUERDA (MANTIDA INTACTA) --- */}
+      <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+        <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
         
-        {/* SIDEBAR ESCURA */}
-        <aside style={{ width: '240px', backgroundColor: '#1c222b', color: '#fff', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '20px', borderBottom: '1px solid #2d3642' }}>
-                <h2 style={{ margin: 0, fontSize: '18px', background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>NewSkin Lab</h2>
+        {/* Status Card */}
+        <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSyncing ? '#A8C7FA' : '#34A853', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isSyncing ? '' : <span style={{ width: '8px', height: '8px', backgroundColor: '#34A853', borderRadius: '50%', display: 'inline-block' }}></span>}
+                {isSyncing ? 'SYNC...' : 'ONLINE'}
+              </span>
             </div>
-            
-            <div style={{ padding: '20px' }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6d7175', letterSpacing: '1px' }}>Loja Conectada</div>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '5px' }}>{storeStats.name}</div>
-                <div style={{ fontSize: '12px', color: isSyncing ? '#ffaa00' : '#00bfa5', marginTop: '5px' }}>
-                    {isSyncing ? '● Sincronizando' : '● Online'}
+            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
+            </div>
+            <div style={{ borderTop: '1px solid #444746', paddingTop: '12px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>LOJA</div>
+                <div style={{ fontSize: '14px', color: '#E3E3E3', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{storeStats.name}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div><div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>PRODUTOS</div><div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.products}</div></div>
+                <div style={{ width: '1px', backgroundColor: '#444746', height: '25px' }}></div>
+                <div style={{ textAlign: 'right' }}><div style={{ fontSize: '10px', color: '#8E918F', marginBottom: '2px' }}>CATEGORIAS</div><div style={{ fontSize: '14px', color: '#A8C7FA', fontWeight: 'bold' }}>{storeStats.categories}</div></div>
+            </div>
+        </div>
+
+        {/* Menu */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
+            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
+            <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
+        </nav>
+      </aside>
+
+      {/* --- ÁREA CENTRAL (REMODELADA) --- */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflowY: 'auto', backgroundColor: '#131314' }}>
+        
+        {/* CONTEÚDO DO DASHBOARD (AGORA SÃO OS CARDS) */}
+        {activeTab === 'dashboard' && (
+            <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+                <div style={{ marginBottom: '30px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#E3E3E3', marginBottom: '10px' }}>Painel de Ferramentas</h1>
+                    <p style={{ color: '#8E918F' }}>Selecione uma ferramenta abaixo para iniciar a edição em massa.</p>
+                </div>
+
+                {/* GRID DE CARDS CENTRALIZADOS E LARGOS */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                    {hextomCards.map((card, index) => (
+                        <button 
+                            key={index} 
+                            onClick={() => handleCardClick(card.title)}
+                            style={{
+                                padding: '24px',
+                                backgroundColor: '#1E1F20', // Fundo escuro do card
+                                border: `1px solid ${card.color}40`, // Borda sutil com a cor do card
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                display: 'flex',
+                                alignItems: 'center', // Ícone ao lado do texto
+                                gap: '20px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                transition: 'all 0.2s ease',
+                                minHeight: '110px'
+                            }}
+                            onMouseEnter={(e) => { 
+                                e.currentTarget.style.backgroundColor = '#282A2C'; 
+                                e.currentTarget.style.transform = 'translateY(-3px)';
+                                e.currentTarget.style.boxShadow = `0 10px 20px -10px ${card.color}30`;
+                            }}
+                            onMouseLeave={(e) => { 
+                                e.currentTarget.style.backgroundColor = '#1E1F20'; 
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
+                            }}
+                        >
+                            {/* Barra de cor superior */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', backgroundColor: card.color }}></div>
+
+                            {/* Ícone */}
+                            <div style={{ fontSize: '32px', flexShrink: 0 }}>{card.icon}</div>
+
+                            {/* Textos */}
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: '700', fontSize: '18px', color: '#E3E3E3', marginBottom: '4px' }}>{card.title}</div>
+                                <div style={{ fontSize: '13px', color: '#8E918F' }}>{card.desc}</div>
+                            </div>
+                            
+                            {/* Seta indicativa */}
+                            <div style={{ color: card.color, fontSize: '20px', opacity: 0.7 }}>→</div>
+                        </button>
+                    ))}
                 </div>
             </div>
+        )}
 
-            <nav>
-                <div onClick={() => setActiveView('dashboard')} style={navItemStyle(activeView === 'dashboard')}>🏠 Dashboard</div>
-                <div onClick={() => { setActiveView('products'); fetchProducts(); }} style={navItemStyle(activeView === 'products')}>📦 Produtos</div>
-                <div onClick={() => setActiveView('history')} style={navItemStyle(activeView === 'history')}>📜 Histórico</div>
-            </nav>
-        </aside>
-
-        {/* ÁREA PRINCIPAL */}
-        <main style={{ flex: 1 }}>
-            {activeView === 'dashboard' && <DashboardView />}
-            {activeView === 'editor' && <EditorView />}
-            {activeView === 'history' && <HistoryView />}
-            
-            {/* VIEW SIMPLES DE PRODUTOS */}
-            {activeView === 'products' && (
-                <div style={{ padding: '40px' }}>
-                    <h1>Produtos ({storeStats.products})</h1>
-                    <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                        {productsList.length === 0 ? 'Carregando...' : (
-                            <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {productsList.map(p => (
-                                    <li key={p.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}>{p.name} - <b style={{color: 'green'}}>R$ {p.price}</b></li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+        {/* TAB DE PRODUTOS (MANTIDA IGUAL) */}
+        {activeTab === 'products' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo</h1>{hasChanges && <button style={{ background: '#34A853', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px' }}>💾 Salvar</button>}</div>
+                    <div style={{ display: 'flex', gap: '10px' }}><input placeholder="🔍 Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} /><button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none' }}>Filtrar</button></div>
                 </div>
-            )}
-        </main>
+                <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+                    <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
+                            <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
+                        </thead>
+                        <tbody>
+                            {loadingProducts ? (
+                                <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
+                            ) : (
+                                productsList.map((p) => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                        <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
+                                        <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
+                                        <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                        <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+      </main>
+
+      {/* SIDEBAR DIREITA REMOVIDA AQUI */}
 
     </div>
   );
 }
-
-// ==========================================
-// ESTILOS INLINE (Para manter tudo num arquivo só)
-// ==========================================
-const cardStyle = {
-    backgroundColor: 'white',
-    borderRadius: '4px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    marginBottom: '20px',
-    border: '1px solid #dfe3e8'
-};
-
-const cardHeaderStyle = {
-    padding: '15px 20px',
-    borderBottom: '1px solid #dfe3e8',
-    backgroundColor: '#fafbfc',
-    borderTopLeftRadius: '4px',
-    borderTopRightRadius: '4px'
-};
-
-const labelStyle = {
-    display: 'block',
-    fontSize: '13px',
-    fontWeight: '600',
-    marginBottom: '8px',
-    color: '#454f5b'
-};
-
-const inputStyle = {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #c4cdd5',
-    fontSize: '14px'
-};
-
-const navItemStyle = (isActive: boolean) => ({
-    padding: '12px 20px',
-    cursor: 'pointer',
-    backgroundColor: isActive ? '#2d3642' : 'transparent',
-    color: isActive ? 'white' : '#acb0b5',
-    fontWeight: isActive ? 'bold' : 'normal',
-    borderLeft: isActive ? '4px solid #4285F4' : '4px solid transparent'
-});
-
-const thStyle = { padding: '15px', textAlign: 'left' as const, fontSize: '14px', color: '#555' };
-const tdStyle = { padding: '15px', borderBottom: '1px solid #eee' };
