@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-// Removido import PreviewCard pois não estava sendo usado
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -11,9 +10,15 @@ export default function NewSkinApp() {
   const [storeId, setStoreId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   
+  // Variável usada para a barra de progresso (Correção do erro TS6133)
+  const [syncProgress, setSyncProgress] = useState(0);
+  
   // Dados
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
   const [productsList, setProductsList] = useState<any[]>([]);
+  
+  // Variável usada para mostrar "Carregando..." (Correção do erro TS6133)
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Chat IA
   const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso consultar informações ou você pode usar as ferramentas ao lado.' }]);
@@ -56,15 +61,20 @@ export default function NewSkinApp() {
                 products: data.total_produtos_banco || 0,
                 categories: data.total_categorias_banco || 0
             });
+            
+            // Lógica da barra de progresso
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
+                setSyncProgress(100);
                 setIsSyncing(false); 
             } else {
+                setSyncProgress((old) => (old < 90 ? old + 10 : 90));
                 fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
             }
         });
   };
 
   const fetchProducts = async (id: string, search = "") => {
+      setLoadingProducts(true);
       try {
           let url = `${BACKEND_URL}/products/${id}?limit=500`;
           if (search) url += `&search=${search}`;
@@ -72,7 +82,7 @@ export default function NewSkinApp() {
           const data = await res.json();
           setProductsList(data);
           setFilteredProducts(data);
-      } catch (error) { console.error(error); }
+      } catch (error) { console.error(error); } finally { setLoadingProducts(false); }
   };
 
   // ==========================================
@@ -152,10 +162,16 @@ export default function NewSkinApp() {
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px' }}>NewSkin Lab</h2>
         
-        {/* Status */}
+        {/* Status (AGORA USANDO syncProgress) */}
         <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
             <div style={{ fontSize: '11px', color: '#C4C7C5', fontWeight: 'bold' }}>STATUS</div>
             <div style={{ fontSize: '14px', color: isSyncing ? '#A8C7FA' : '#34A853', fontWeight: 'bold', marginTop: '5px' }}>{isSyncing ? 'SYNC...' : 'ONLINE'}</div>
+            
+            {/* Barra de Progresso Restaurada */}
+            <div style={{ width: '100%', height: '4px', backgroundColor: '#444746', borderRadius: '10px', overflow: 'hidden', marginTop: '10px' }}>
+              <div style={{ width: `${syncProgress}%`, height: '100%', backgroundColor: syncProgress < 100 ? '#4285F4' : '#34A853', transition: 'width 0.3s' }}></div>
+            </div>
+
             <div style={{ marginTop: '10px', fontSize: '12px', color: '#ccc' }}>{storeStats.products} Produtos</div>
         </div>
 
@@ -251,26 +267,33 @@ export default function NewSkinApp() {
                         <button onClick={runPreview} style={{ padding: '12px 20px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Buscar</button>
                     </div>
 
-                    {/* Preview Table */}
+                    {/* Preview Table (AGORA USANDO loadingProducts) */}
                     {showPreview && (
                         <div style={{ marginTop: '20px', background: '#252729', borderRadius: '8px', padding: '15px', maxHeight: '300px', overflowY: 'auto' }}>
-                            <div style={{ marginBottom: '10px', fontSize: '13px', color: '#aaa' }}>Encontrados: <strong>{filteredProducts.length}</strong> produtos</div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                <thead>
-                                    <tr style={{ color: '#888', textAlign: 'left', borderBottom: '1px solid #333' }}>
-                                        <th style={{ padding: '8px' }}>Nome</th>
-                                        <th style={{ padding: '8px' }}>Preço</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredProducts.slice(0, 10).map(p => (
-                                        <tr key={p.id} style={{ borderBottom: '1px solid #333' }}>
-                                            <td style={{ padding: '8px' }}>{p.name}</td>
-                                            <td style={{ padding: '8px', color: '#4CAF50' }}>R$ {p.price}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            
+                            {loadingProducts ? (
+                                <div style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando lista...</div>
+                            ) : (
+                                <>
+                                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#aaa' }}>Encontrados: <strong>{filteredProducts.length}</strong> produtos</div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                        <thead>
+                                            <tr style={{ color: '#888', textAlign: 'left', borderBottom: '1px solid #333' }}>
+                                                <th style={{ padding: '8px' }}>Nome</th>
+                                                <th style={{ padding: '8px' }}>Preço</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredProducts.slice(0, 10).map(p => (
+                                                <tr key={p.id} style={{ borderBottom: '1px solid #333' }}>
+                                                    <td style={{ padding: '8px' }}>{p.name}</td>
+                                                    <td style={{ padding: '8px', color: '#4CAF50' }}>R$ {p.price}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
