@@ -32,7 +32,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // Trazemos 500 produtos para o editor (você pode aumentar o limite no backend se precisar)
+      // Trazemos 500 produtos para o editor
       const res = await fetch(`${BACKEND_URL}/products/${storeId}?limit=500`);
       const data = await res.json();
       setAllProducts(data);
@@ -142,7 +142,6 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
       </div>
 
       {/* === PREVIEW DOS RESULTADOS (TABELA) === */}
-      {/* Só mostramos a tabela se houver produtos carregados */}
       <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '16px', padding: '30px', marginBottom: '20px', maxHeight: '400px', overflowY: 'auto' }}>
         <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#A8C7FA', fontSize: '14px' }}>
             Resultados do Filtro ({filteredProducts.length})
@@ -158,7 +157,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
                 </tr>
             </thead>
             <tbody>
-                {filteredProducts.slice(0, 50).map(p => ( // Mostra apenas os primeiros 50 para não travar
+                {filteredProducts.slice(0, 50).map(p => ( 
                     <tr key={p.id} style={{ borderBottom: '1px solid #333' }}>
                         <td style={{ padding: '10px' }}><img src={p.image_url} width="30" style={{borderRadius: '4px'}} /></td>
                         <td style={{ padding: '10px' }}>{p.name}</td>
