@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import PreviewCard from './PreviewCard'; // Se não tiver, comente essa linha
+// Removido import PreviewCard pois não estava sendo usado
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -7,15 +7,13 @@ export default function NewSkinApp() {
   // ==========================================
   // 1. ESTADOS
   // ==========================================
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'editor', 'products'
+  const [activeTab, setActiveTab] = useState('dashboard'); 
   const [storeId, setStoreId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
-  const [syncProgress, setSyncProgress] = useState(0);
   
   // Dados
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Chat IA
   const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso consultar informações ou você pode usar as ferramentas ao lado.' }]);
@@ -40,7 +38,7 @@ export default function NewSkinApp() {
     if (id) {
       setStoreId(id);
       checkStoreStatus(id);
-      fetchProducts(id); // Já carrega produtos para o editor
+      fetchProducts(id); 
     } else {
       setIsSyncing(false);
     }
@@ -59,17 +57,14 @@ export default function NewSkinApp() {
                 categories: data.total_categorias_banco || 0
             });
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-                setSyncProgress(100);
                 setIsSyncing(false); 
             } else {
-                setSyncProgress(90);
                 fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
             }
         });
   };
 
   const fetchProducts = async (id: string, search = "") => {
-      setLoadingProducts(true);
       try {
           let url = `${BACKEND_URL}/products/${id}?limit=500`;
           if (search) url += `&search=${search}`;
@@ -77,7 +72,7 @@ export default function NewSkinApp() {
           const data = await res.json();
           setProductsList(data);
           setFilteredProducts(data);
-      } catch (error) { console.error(error); } finally { setLoadingProducts(false); }
+      } catch (error) { console.error(error); }
   };
 
   // ==========================================
@@ -110,7 +105,6 @@ export default function NewSkinApp() {
   const openTool = (tool: any) => {
       setSelectedTool(tool);
       setActiveTab('editor');
-      // Reset filtros
       setFilterField('title');
       setFilterValue('');
       setShowPreview(false);
@@ -154,7 +148,7 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR ESQUERDA (MANTIDA) */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px' }}>NewSkin Lab</h2>
         
@@ -174,7 +168,7 @@ export default function NewSkinApp() {
       {/* ÁREA CENTRAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflowY: 'auto' }}>
         
-        {/* === MODO 1: DASHBOARD (CHAT + CARDS) === */}
+        {/* MODO 1: DASHBOARD (CHAT + CARDS) */}
         {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', height: '100%' }}>
                 
@@ -219,7 +213,7 @@ export default function NewSkinApp() {
             </div>
         )}
 
-        {/* === MODO 2: EDITOR (FILTROS HEXTOM) === */}
+        {/* MODO 2: EDITOR (FILTROS HEXTOM) */}
         {activeTab === 'editor' && selectedTool && (
             <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
                 
@@ -233,7 +227,7 @@ export default function NewSkinApp() {
                     </div>
                 </div>
 
-                {/* FILTROS (HEXTOM) */}
+                {/* FILTROS */}
                 <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '12px', padding: '25px', marginBottom: '25px' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#E3E3E3', borderBottom: '1px solid #333', paddingBottom: '15px' }}>Passo 1: Selecionar Produtos</h3>
                     
