@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PreviewCard from './PreviewCard';
+import PricePage from './PricePage'; // <-- Importação da nova página
 
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
@@ -12,9 +13,12 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
+  // --- NOVO ESTADO: CONTROLADOR DE PÁGINAS DE FERRAMENTAS ---
+  const [currentToolPage, setCurrentToolPage] = useState<string | null>(null);
+
   // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false); // <--- AGORA VAMOS USAR ISSO
+  const [loadingProducts, setLoadingProducts] = useState(false); 
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -31,8 +35,8 @@ export default function NewSkinApp() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!currentToolPage) scrollToBottom();
+  }, [messages, currentToolPage]);
 
   // ==========================================
   // 2. LÓGICA DE CARREGAMENTO
@@ -236,106 +240,116 @@ export default function NewSkinApp() {
 
         {/* MENU */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-            <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
-            <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
+            <div onClick={() => { setActiveTab('dashboard'); setCurrentToolPage(null); }} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
+            <div onClick={() => { setActiveTab('products'); setCurrentToolPage(null); }} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📜</span> Histórico</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💎</span> Planos</div>
             <div onClick={() => alert("Em breve")} style={{ padding: '12px', color: '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>💬</span> Fale Conosco</div>
         </nav>
       </aside>
 
-      {/* ÁREA CENTRAL */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
-        
-        {activeTab === 'dashboard' && (
-            <>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ width: '100%', maxWidth: '700px' }}>
-                        {messages.map((m, i) => (
-                        <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                            <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
-                            <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '90%', textAlign: 'left' }}>
-                                <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
-                                {m.command && (
-                                    <div style={{ backgroundColor: '#1E1F20', border: '1px solid #4285F4', borderRadius: '12px', padding: '20px', marginTop: '15px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO IDENTIFICADA</span></div>
-                                        <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '20px', padding: '10px', background: '#282A2C', borderRadius: '8px' }}>
-                                            {m.command.type === 'update_price' ? `Mudar Preço: ${m.command.params.operation.toUpperCase()} | Valor: ${m.command.params.value}` : `Editar Título: ${m.command.params.action}`}
+      {/* ÁREA CENTRAL E DIREITA DINÂMICA */}
+      {currentToolPage === 'Price' ? (
+        <main style={{ flex: 1, backgroundColor: '#131314' }}>
+           <PricePage storeId={storeId} onBack={() => setCurrentToolPage(null)} />
+        </main>
+      ) : (
+        <>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
+            
+            {activeTab === 'dashboard' && (
+                <>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ width: '100%', maxWidth: '700px' }}>
+                            {messages.map((m, i) => (
+                            <div key={i} style={{ marginBottom: '30px', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                                <div style={{ fontSize: '12px', color: '#8E918F', marginBottom: '8px', marginLeft: '10px' }}>{m.role === 'ai' ? 'NewSkin AI ✨' : 'Você'}</div>
+                                <div style={{ display: 'inline-block', padding: '18px 24px', borderRadius: '24px', backgroundColor: m.role === 'user' ? '#282A2C' : 'transparent', color: '#E3E3E3', border: m.role === 'user' ? 'none' : 'none', maxWidth: '90%', textAlign: 'left' }}>
+                                    <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
+                                    {m.command && (
+                                        <div style={{ backgroundColor: '#1E1F20', border: '1px solid #4285F4', borderRadius: '12px', padding: '20px', marginTop: '15px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO IDENTIFICADA</span></div>
+                                            <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '20px', padding: '10px', background: '#282A2C', borderRadius: '8px' }}>
+                                                {m.command.type === 'update_price' ? `Mudar Preço: ${m.command.params.operation.toUpperCase()} | Valor: ${m.command.params.value}` : `Editar Título: ${m.command.params.action}`}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '10px' }}>
+                                                <button onClick={() => executeCommand(m.command)} style={{ flex: 1, padding: '12px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ APROVAR</button>
+                                                <button onClick={() => alert("Cancelado")} style={{ flex: 1, padding: '12px', background: 'transparent', color: '#F44336', border: '1px solid #F44336', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>❌ CANCELAR</button>
+                                            </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button onClick={() => executeCommand(m.command)} style={{ flex: 1, padding: '12px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ APROVAR</button>
-                                            <button onClick={() => alert("Cancelado")} style={{ flex: 1, padding: '12px', background: 'transparent', color: '#F44336', border: '1px solid #F44336', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>❌ CANCELAR</button>
-                                        </div>
-                                    </div>
-                                )}
-                                {m.suggestions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>{m.suggestions.map((s: string, idx: number) => <button key={idx} onClick={() => handleSend(s)} style={{ background: 'transparent', border: '1px solid #4285F4', color: '#A8C7FA', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>{s}</button>)}</div>}
-                                {m.type === 'preview_list' && <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />}
+                                    )}
+                                    {m.suggestions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>{m.suggestions.map((s: string, idx: number) => <button key={idx} onClick={() => handleSend(s)} style={{ background: 'transparent', border: '1px solid #4285F4', color: '#A8C7FA', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>{s}</button>)}</div>}
+                                    {m.type === 'preview_list' && <PreviewCard products={m.data} onConfirm={() => alert("Em breve!")} onCancel={() => {}} />}
+                                </div>
                             </div>
+                            ))}
+                            {isLoading && <div style={{ textAlign: 'left', marginLeft: '20px', color: '#888' }}>NewSkin AI está pensando...</div>}
+                            <div ref={chatEndRef} />
                         </div>
-                        ))}
-                        {isLoading && <div style={{ textAlign: 'left', marginLeft: '20px', color: '#888' }}>NewSkin AI está pensando...</div>}
-                        <div ref={chatEndRef} />
+                    </div>
+                    <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ position: 'relative', width: '100%', maxWidth: '700px' }}>
+                            <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)} placeholder="Pergunte à IA..." disabled={isLoading} style={{ width: '100%', padding: '22px 25px', borderRadius: '100px', border: '1px solid #444746', backgroundColor: '#1E1F20', color: '#E3E3E3', outline: 'none' }} />
+                            <button onClick={() => handleSend(inputValue)} style={{ position: 'absolute', right: '10px', top: '10px', backgroundColor: '#E3E3E3', color: '#131314', border: 'none', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer' }}>➤</button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {activeTab === 'products' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo</h1>{hasChanges && <button style={{ background: '#34A853', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px' }}>💾 Salvar</button>}</div>
+                        <div style={{ display: 'flex', gap: '10px' }}><input placeholder="🔍 Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} /><button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none' }}>Filtrar</button></div>
+                    </div>
+                    <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+                        <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
+                                <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
+                            </thead>
+                            <tbody>
+                                {loadingProducts ? (
+                                    <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
+                                ) : (
+                                    productsList.map((p) => (
+                                        <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                            <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
+                                            <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                            <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
+                                            <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
+                                            <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                            <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                            <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div style={{ padding: '20px 40px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                    <div style={{ position: 'relative', width: '100%', maxWidth: '700px' }}>
-                        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)} placeholder="Pergunte à IA..." disabled={isLoading} style={{ width: '100%', padding: '22px 25px', borderRadius: '100px', border: '1px solid #444746', backgroundColor: '#1E1F20', color: '#E3E3E3', outline: 'none' }} />
-                        <button onClick={() => handleSend(inputValue)} style={{ position: 'absolute', right: '10px', top: '10px', backgroundColor: '#E3E3E3', color: '#131314', border: 'none', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer' }}>➤</button>
-                    </div>
-                </div>
-            </>
-        )}
+            )}
+          </main>
 
-        {/* PRODUTOS */}
-        {activeTab === 'products' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Catálogo</h1>{hasChanges && <button style={{ background: '#34A853', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px' }}>💾 Salvar</button>}</div>
-                    <div style={{ display: 'flex', gap: '10px' }}><input placeholder="🔍 Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} /><button onClick={() => fetchProducts(storeId!, searchTerm)} style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none' }}>Filtrar</button></div>
+          {/* SIDEBAR DIREITA */}
+          {activeTab === 'dashboard' && (
+            <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {hextomCards.map((card, index) => (
+                    <button 
+                        key={index} 
+                        onClick={() => card.title === 'Price' ? setCurrentToolPage('Price') : handleSend(`Executar ferramenta: ${card.title}`)} 
+                        style={{ padding: '16px', backgroundColor: '#1E1F20', border: `1px solid ${card.color}40`, borderRadius: '16px', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden', minHeight: '120px' }}
+                    >
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
+                        <div style={{ fontSize: '24px' }}>{card.icon}</div>
+                        <div><div style={{ fontWeight: '600', fontSize: '14px', color: '#E3E3E3' }}>{card.title}</div><div style={{ fontSize: '11px', color: '#8E918F' }}>{card.desc}</div></div>
+                    </button>
+                ))}
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
-                    <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
-                            <tr><th style={{ padding: '12px', color: '#aaa' }}>IMG</th><th style={{ padding: '12px', color: '#aaa' }}>NOME</th><th style={{ padding: '12px', color: '#aaa' }}>SKU</th><th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th><th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th><th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th><th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th></tr>
-                        </thead>
-                        <tbody>
-                            {/* AQUI ESTÁ A CORREÇÃO: USAMOS loadingProducts PARA MOSTRAR CARREGAMENTO */}
-                            {loadingProducts ? (
-                                <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
-                            ) : (
-                                productsList.map((p) => (
-                                    <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
-                                        <td style={{ padding: '10px' }}><img src={p.image_url} style={{ width: '35px', borderRadius: '4px' }} /></td>
-                                        <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
-                                        <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
-                                        <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
-                                        <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        )}
-      </main>
-
-      {/* SIDEBAR DIREITA */}
-      {activeTab === 'dashboard' && (
-        <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#C4C7C5', marginBottom: '20px', letterSpacing: '1px', textTransform: 'uppercase' }}>Ferramentas Bulk</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {hextomCards.map((card, index) => (
-                <button key={index} onClick={() => handleSend(`Executar ferramenta: ${card.title}`)} style={{ padding: '16px', backgroundColor: '#1E1F20', border: `1px solid ${card.color}40`, borderRadius: '16px', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden', minHeight: '120px' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: card.color }}></div>
-                    <div style={{ fontSize: '24px' }}>{card.icon}</div>
-                    <div><div style={{ fontWeight: '600', fontSize: '14px', color: '#E3E3E3' }}>{card.title}</div><div style={{ fontSize: '11px', color: '#8E918F' }}>{card.desc}</div></div>
-                </button>
-            ))}
-            </div>
-        </aside>
+            </aside>
+          )}
+        </>
       )}
 
     </div>
