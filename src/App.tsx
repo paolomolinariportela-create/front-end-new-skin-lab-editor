@@ -12,7 +12,7 @@ export default function NewSkinApp() {
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   
-  // --- ESTADO: FERRAMENTA ATIVA NO CHAT ---
+  // Estado: Ferramenta Ativa (Modo Operador)
   const [activeTool, setActiveTool] = useState<any>(null); 
 
   // Dados
@@ -21,10 +21,10 @@ export default function NewSkinApp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Stats (Barra Lateral)
+  // Stats
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
   
-  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com dúvidas sobre seu estoque.' }]);
+  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar a consultar ou editar seu estoque.' }]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -49,7 +49,7 @@ export default function NewSkinApp() {
       setStoreId(id);
       checkStoreStatus(id);
     } else {
-      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja.' }]);
+      setMessages([{ role: 'ai', text: '⚠️ Atenção: Não encontrei o ID da loja na URL.' }]);
       setIsSyncing(false);
     }
   }, []);
@@ -102,26 +102,11 @@ export default function NewSkinApp() {
   }, [storeId, isSyncing]);
 
   // ==========================================
-  // 3. FUNÇÕES UX
+  // 3. FUNÇÕES UX E EXECUÇÃO
   // ==========================================
   const handleInputChange = (id: string, field: string, value: any) => {
       setHasChanges(true);
       setProductsList(prevList => prevList.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
-
-  const handleEditVariant = (productId: string, variantIndex: number, currentPrice: number) => {
-      const newPrice = window.prompt("Novo preço para esta variante:", currentPrice.toString());
-      if (newPrice) {
-          setHasChanges(true);
-          setProductsList(prevList => prevList.map(p => {
-              if (p.id === productId) {
-                  const updatedVariants = [...p.variants_json];
-                  updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], price: parseFloat(newPrice) };
-                  return { ...p, variants_json: updatedVariants };
-              }
-              return p;
-          }));
-      }
   };
 
   const renderVariants = (product: any) => {
@@ -130,9 +115,9 @@ export default function NewSkinApp() {
               {product.variants_json?.map((v: any, i: number) => {
                   const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
                   return (
-                      <div key={i} onClick={() => handleEditVariant(product.id, i, v.price || product.price)} 
-                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', cursor: 'pointer', minWidth: '60px', textAlign: 'center' }}
-                        title="Clique para editar preço desta variante">
+                      <div key={i} 
+                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', minWidth: '60px', textAlign: 'center' }}
+                        title="Variante">
                           <div style={{ fontWeight: 'bold' }}>{name}</div>
                           <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
                       </div>
@@ -151,13 +136,9 @@ export default function NewSkinApp() {
     { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
     { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
     { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
-    { title: "Weight", desc: "Shipping calc", color: "#E91E63", icon: "⚖️" }, 
-    { title: "Variants", desc: "Options", color: "#2196F3", icon: "🔢" }, 
-    { title: "Availability", desc: "Visibility", color: "#FFC107", icon: "👁️" }, 
-    { title: "Template", desc: "Layouts", color: "#795548", icon: "📐" } 
   ];
 
-  // --- MODO OPERADOR ---
+  // --- MODOS ---
   const activateToolMode = (tool: any) => {
       setActiveTool(tool);
       setMessages(prev => [...prev, { 
@@ -176,6 +157,7 @@ export default function NewSkinApp() {
       }]);
   };
 
+  // --- ENVIO DO CHAT ---
   const handleSend = async (text: string) => {
     if (!text || !storeId) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
@@ -210,20 +192,20 @@ export default function NewSkinApp() {
     }
   };
 
+  // --- EXECUÇÃO REAL (AGORA COM FETCH) ---
   const executeCommand = async (command: any) => {
-      if (!storeId) return alert("Erro: Loja não identificada.");
-
-      // 1. Feedback visual imediato para o usuário não clicar duas vezes
-      const confirm = window.confirm(`🚀 Confirmar execução?\n\nAção: ${command.changes[0].action}\nCampo: ${command.changes[0].field}\n\nIsso afetará os produtos selecionados. Continuar?`);
+      if (!command?.changes) return alert("Erro no formato do comando.");
+      
+      const c = command.changes[0];
+      const confirm = window.confirm(`🚀 Confirmar alteração na Nuvemshop?\n\nAção: ${c.action}\nCampo: ${c.field}\nValor: ${c.value}\n\nIsso afetará produtos reais.`);
       
       if (!confirm) return;
 
-      // 2. Trava a UI (opcional, aqui usamos alerta por simplicidade)
-      alert("⏳ Processando... O sistema está aplicando as alterações em segundo plano.");
+      // Feedback de carregamento
+      setMessages(prev => [...prev, { role: 'ai', text: '⏳ Processando... Enviando comando para o servidor.' }]);
 
       try {
-          // 3. Envia para o Backend
-          const response = await fetch(`${BACKEND_URL}/apply-changes`, {
+          const res = await fetch(`${BACKEND_URL}/apply-changes`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -232,28 +214,18 @@ export default function NewSkinApp() {
               })
           });
 
-          const data = await response.json();
-
-          if (response.ok) {
-              // 4. Sucesso!
-              alert(`✅ SUCESSO!\n\n${data.message}`);
-              
-              // Adiciona uma mensagem de conclusão no chat para ficar bonito
-              setMessages(prev => [...prev, { 
-                  role: 'ai', 
-                  text: '✅ Pronto! O comando foi enviado para execução. As alterações aparecerão na sua loja em breve.' 
-              }]);
-              
-              // Opcional: Recarregar a lista de produtos para ver a mudança
-              fetchProducts(storeId, searchTerm); 
-
+          const result = await res.json();
+          
+          if (res.ok) {
+             setMessages(prev => [...prev, { role: 'ai', text: `✅ Sucesso! O servidor respondeu: "${result.message}"` }]);
           } else {
-              alert(`❌ Erro no Backend: ${data.detail || "Falha desconhecida."}`);
+             alert("Erro no servidor: " + JSON.stringify(result));
+             setMessages(prev => [...prev, { role: 'ai', text: '❌ Ocorreu um erro ao processar.' }]);
           }
 
-      } catch (error) {
-          console.error("Erro de execução:", error);
-          alert("❌ Erro de conexão. Verifique se o backend está rodando.");
+      } catch (err) {
+          console.error(err);
+          alert("Erro de conexão. Verifique o console.");
       }
   };
 
@@ -263,12 +235,12 @@ export default function NewSkinApp() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* SIDEBAR ESQUERDA (DADOS RESTAURADOS) */}
+      {/* SIDEBAR ESQUERDA */}
       <aside style={{ width: '260px', minWidth: '260px', backgroundColor: '#1E1F20', borderRight: '1px solid #444746', padding: '24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
         
         <h2 style={{ background: 'linear-gradient(90deg, #4285F4, #9B72CB)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800', fontSize: '24px', marginBottom: '20px', letterSpacing: '-1px' }}>NewSkin Lab</h2>
         
-        {/* CARD DE STATUS COMPLETO */}
+        {/* Status */}
         <div style={{ padding: '20px', backgroundColor: '#282A2C', borderRadius: '16px', border: '1px solid #444746', marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#C4C7C5', letterSpacing: '1px' }}>STATUS</span>
@@ -302,7 +274,6 @@ export default function NewSkinApp() {
             </div>
         </div>
 
-        {/* MENU COMPLETO */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
             <div onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', backgroundColor: activeTab === 'dashboard' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'dashboard' ? '#A8C7FA' : '#C4C7C5', fontWeight: '600', paddingLeft: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}><span>✨</span> Dashboard</div>
             <div onClick={() => setActiveTab('products')} style={{ padding: '12px', backgroundColor: activeTab === 'products' ? '#004A77' : 'transparent', borderRadius: '50px', color: activeTab === 'products' ? '#A8C7FA' : '#C4C7C5', paddingLeft: '20px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}><span>📦</span> Produtos</div>
@@ -318,10 +289,9 @@ export default function NewSkinApp() {
         {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', height: '100%' }}>
                 
-                {/* ÁREA DE CHAT */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                     
-                    {/* BARRA DE CONTEXTO (TOPO DO CHAT) */}
+                    {/* BARRA DE MODO OPERADOR */}
                     {activeTool && (
                         <div style={{ 
                             position: 'absolute', top: 0, left: 0, right: 0, 
@@ -403,7 +373,7 @@ export default function NewSkinApp() {
                     </div>
                 </div>
 
-                {/* SIDEBAR DIREITA (CARDS) */}
+                {/* SIDEBAR DIREITA */}
                 <aside style={{ width: '340px', minWidth: '340px', backgroundColor: '#131314', borderLeft: '1px solid #444746', padding: '24px', overflowY: 'auto' }}>
                     <h3 style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '15px', textTransform: 'uppercase' }}>FERRAMENTAS BULK</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -429,7 +399,7 @@ export default function NewSkinApp() {
             </div>
         )}
 
-        {/* ABA DE PRODUTOS */}
+        {/* PRODUTOS */}
         {activeTab === 'products' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
