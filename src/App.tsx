@@ -210,13 +210,50 @@ export default function NewSkinApp() {
     }
   };
 
-  const executeCommand = (command: any) => {
-      if (command?.changes) {
-          const c = command.changes[0];
-          alert(`🚀 ENVIANDO PARA NUVEMSHOP:\n\nAção: ${c.action}\nCampo: ${c.field}\nValor: ${c.value}`);
-          // AQUI VAMOS COLOCAR A CHAMADA REAL DO BACKEND
-      } else {
-          alert("Erro no comando.");
+  const executeCommand = async (command: any) => {
+      if (!storeId) return alert("Erro: Loja não identificada.");
+
+      // 1. Feedback visual imediato para o usuário não clicar duas vezes
+      const confirm = window.confirm(`🚀 Confirmar execução?\n\nAção: ${command.changes[0].action}\nCampo: ${command.changes[0].field}\n\nIsso afetará os produtos selecionados. Continuar?`);
+      
+      if (!confirm) return;
+
+      // 2. Trava a UI (opcional, aqui usamos alerta por simplicidade)
+      alert("⏳ Processando... O sistema está aplicando as alterações em segundo plano.");
+
+      try {
+          // 3. Envia para o Backend
+          const response = await fetch(`${BACKEND_URL}/apply-changes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  store_id: storeId,
+                  command: command
+              })
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+              // 4. Sucesso!
+              alert(`✅ SUCESSO!\n\n${data.message}`);
+              
+              // Adiciona uma mensagem de conclusão no chat para ficar bonito
+              setMessages(prev => [...prev, { 
+                  role: 'ai', 
+                  text: '✅ Pronto! O comando foi enviado para execução. As alterações aparecerão na sua loja em breve.' 
+              }]);
+              
+              // Opcional: Recarregar a lista de produtos para ver a mudança
+              fetchProducts(storeId, searchTerm); 
+
+          } else {
+              alert(`❌ Erro no Backend: ${data.detail || "Falha desconhecida."}`);
+          }
+
+      } catch (error) {
+          console.error("Erro de execução:", error);
+          alert("❌ Erro de conexão. Verifique se o backend está rodando.");
       }
   };
 
