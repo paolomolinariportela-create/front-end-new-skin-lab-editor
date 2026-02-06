@@ -14,13 +14,13 @@ export default function NewSkinApp() {
   
   // Lista de Produtos
   const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false); // <--- AGORA VAMOS USAR ISSO
+  const [loadingProducts, setLoadingProducts] = useState(false); 
   const [searchTerm, setSearchTerm] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
   // Stats
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
-  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar com preços, títulos ou dúvidas sobre seu estoque.' }]);
+  const [messages, setMessages] = useState<any[]>([{ role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso consultar informações do seu estoque para você.' }]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -68,7 +68,7 @@ export default function NewSkinApp() {
 
             if (data.ultimo_erro === "SYNC_CONCLUIDO") {
                 if(isSyncing) {
-                   setMessages(prev => [...prev, { role: 'ai', text: `Conectado! ${data.total_produtos_banco} produtos prontos para edição.` }]);
+                   setMessages(prev => [...prev, { role: 'ai', text: `Conectado! ${data.total_produtos_banco} produtos no banco de dados.` }]);
                    setSyncProgress(100);
                    setIsSyncing(false); 
                 }
@@ -185,8 +185,9 @@ export default function NewSkinApp() {
     }
   };
 
+  // CORREÇÃO: Usamos a variável 'command' no alerta para satisfazer o TypeScript
   const executeCommand = (command: any) => {
-      alert(`🚀 COMANDO APROVADO!\n\n${command.type} -> ${JSON.stringify(command.params)}`);
+      alert(`🚀 AÇÃO BLOQUEADA: ${command?.type || 'Desconhecida'}\n\nA IA está em modo 'Apenas Leitura' e não pode executar alterações.`);
   };
 
   // ==========================================
@@ -258,7 +259,7 @@ export default function NewSkinApp() {
                                 <div style={{ marginBottom: (m.command || m.suggestions) ? '15px' : '0' }}>{m.text}</div>
                                 {m.command && (
                                     <div style={{ backgroundColor: '#1E1F20', border: '1px solid #4285F4', borderRadius: '12px', padding: '20px', marginTop: '15px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO IDENTIFICADA</span></div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#A8C7FA', fontWeight: 'bold' }}><span>⚡ AÇÃO PENDENTE</span></div>
                                         <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '20px', padding: '10px', background: '#282A2C', borderRadius: '8px' }}>
                                             {m.command.type === 'update_price' ? `Mudar Preço: ${m.command.params.operation.toUpperCase()} | Valor: ${m.command.params.value}` : `Editar Título: ${m.command.params.action}`}
                                         </div>
