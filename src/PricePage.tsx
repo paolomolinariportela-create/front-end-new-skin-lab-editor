@@ -17,7 +17,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
         ← Voltar ao Dashboard
       </button>
 
-      {/* Cabeçalho - O storeId é usado aqui para evitar erro de build */}
+      {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #333', paddingBottom: '20px' }}>
         <div style={{ fontSize: '40px', background: '#4CAF5020', padding: '15px', borderRadius: '12px', color: '#4CAF50', border: '1px solid #4CAF5040' }}>
           💲
@@ -25,14 +25,14 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Ajuste de Preços</h1>
           <p style={{ color: '#888', margin: 0 }}>
-            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId || "Carregando..."}</span>
+            Configurando produtos da loja: <span style={{ color: '#A8C7FA' }}>{storeId}</span>
           </p>
         </div>
       </div>
 
-      {/* Interface de Filtros */}
-      <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '16px', padding: '30px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '25px', color: '#A8C7FA', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+      {/* Filtros Estilo Hextom */}
+      <div style={{ backgroundColor: '#1E1F20', border: '1px solid #444', borderRadius: '16px', padding: '30px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '25px', color: '#A8C7FA', fontSize: '14px', textTransform: 'uppercase' }}>
           Passo 1: Selecionar Produtos
         </h3>
         
@@ -46,7 +46,7 @@ export default function PricePage({ onBack, storeId }: PricePageProps) {
             <option>É igual a</option>
           </select>
           <input type="text" placeholder="Valor..." style={{ ...selectStyle, flex: 1, background: '#131314' }} />
-          <button style={{ padding: '12px 30px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button style={{ padding: '12px 30px', background: '#4285F4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
             Preview
           </button>
         </div>
