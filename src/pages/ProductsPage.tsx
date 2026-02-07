@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Ajuste a URL se necessário, ou crie um arquivo de config depois
-const BACKEND_URL = "https://king-urban-ai-production.up.railway.app"; 
+const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 interface ProductsPageProps {
   storeId: string | null;
