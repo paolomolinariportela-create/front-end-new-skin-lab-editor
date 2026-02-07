@@ -28,7 +28,7 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
 
   const fetchHistory = async () => {
     try {
-      // USANDO FETCH (Nativo) em vez de Axios
+      // USANDO FETCH (Nativo) - Zero dependências extras
       const response = await fetch(`${API_URL}/history/${storeId}`);
       const data = await response.json();
       setLogs(data);
