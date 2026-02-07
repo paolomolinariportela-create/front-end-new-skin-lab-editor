@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { History, RotateCcw, CheckCircle, XCircle, Clock } from 'lucide-react';
 
-// URL do Backend (ajuste se necessário)
-const API_URL = "https://king-urban-ai-production.up.railway.app"; 
+// URL do Backend
+const API_URL = "https://web-production-4b8a.up.railway.app"; 
 
 interface HistoryLog {
   id: number;
@@ -30,8 +28,10 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
 
   const fetchHistory = async () => {
     try {
-      const response = await axios.get(`${API_URL}/history/${storeId}`);
-      setLogs(response.data);
+      // Substituindo axios por fetch para manter padrão
+      const response = await fetch(`${API_URL}/history/${storeId}`);
+      const data = await response.json();
+      setLogs(data);
     } catch (error) {
       console.error("Erro ao buscar histórico", error);
     } finally {
@@ -41,13 +41,13 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
 
   // Função de Reverter
   const handleRevert = async (logId: number) => {
-    if (!confirm("Tem certeza que deseja desfazer essa alteração? Isso vai aplicar a lógica inversa nos produtos.")) return;
+    if (!window.confirm("Tem certeza que deseja desfazer essa alteração? Isso vai aplicar a lógica inversa nos produtos.")) return;
 
     setProcessingId(logId);
     try {
-      await axios.post(`${API_URL}/history/revert/${logId}`);
+      await fetch(`${API_URL}/history/revert/${logId}`, { method: 'POST' });
       alert("Reversão iniciada! O processo está rodando em segundo plano.");
-      // Atualiza a lista após 2 segundos para dar tempo do status mudar
+      // Atualiza a lista após 2 segundos
       setTimeout(fetchHistory, 2000);
     } catch (error) {
       alert("Erro ao tentar reverter.");
@@ -56,77 +56,77 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
     }
   };
 
-  if (loading) return <div className="p-10 text-white">Carregando histórico...</div>;
+  if (loading) return <div className="p-10 text-white text-center">⏳ Carregando histórico...</div>;
 
   return (
-    <div className="p-6 bg-[#111] min-h-screen text-gray-200">
-      <div className="flex items-center gap-3 mb-6">
-        <History className="w-8 h-8 text-blue-400" />
-        <h1 className="text-2xl font-bold text-white">Histórico de Ações</h1>
+    <div style={{ padding: '24px', backgroundColor: '#131314', minHeight: '100%', color: '#E3E3E3', overflow: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+        <span style={{ fontSize: '24px' }}>📜</span>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', margin: 0 }}>Histórico de Ações</h1>
       </div>
 
-      <div className="overflow-x-auto bg-[#1a1a1a] rounded-lg border border-gray-800 shadow-xl">
-        <table className="w-full text-left border-collapse">
+      <div style={{ overflowX: 'auto', backgroundColor: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
-            <tr className="bg-[#222] text-gray-400 border-b border-gray-700">
-              <th className="p-4 font-semibold">Data</th>
-              <th className="p-4 font-semibold">Ação Executada</th>
-              <th className="p-4 font-semibold text-center">Afetados</th>
-              <th className="p-4 font-semibold text-center">Status</th>
-              <th className="p-4 font-semibold text-right">Opções</th>
+            <tr style={{ backgroundColor: '#282A2C', borderBottom: '1px solid #444746' }}>
+              <th style={{ padding: '16px', color: '#aaa', fontWeight: '600' }}>Data</th>
+              <th style={{ padding: '16px', color: '#aaa', fontWeight: '600' }}>Ação Executada</th>
+              <th style={{ padding: '16px', color: '#aaa', fontWeight: '600', textAlign: 'center' }}>Afetados</th>
+              <th style={{ padding: '16px', color: '#aaa', fontWeight: '600', textAlign: 'center' }}>Status</th>
+              <th style={{ padding: '16px', color: '#aaa', fontWeight: '600', textAlign: 'right' }}>Opções</th>
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">
+                <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#888' }}>
                   Nenhuma alteração registrada ainda.
                 </td>
               </tr>
             ) : (
               logs.map((log) => (
-                <tr key={log.id} className="border-b border-gray-800 hover:bg-[#252525] transition-colors">
-                  <td className="p-4 text-sm text-gray-400">
+                <tr key={log.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#aaa' }}>
                     {new Date(log.created_at).toLocaleString('pt-BR')}
                   </td>
-                  <td className="p-4">
-                    <span className="font-medium text-white">{log.action_summary}</span>
-                    <div className="text-xs text-gray-500 mt-1 max-w-md truncate">
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ fontWeight: '500', color: 'white' }}>{log.action_summary}</div>
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {log.full_command}
                     </div>
                   </td>
-                  <td className="p-4 text-center font-bold text-blue-300">
+                  <td style={{ padding: '16px', textAlign: 'center', fontWeight: 'bold', color: '#A8C7FA' }}>
                     {log.affected_count}
                   </td>
-                  <td className="p-4 text-center">
+                  <td style={{ padding: '16px', textAlign: 'center' }}>
                     {log.status === 'SUCCESS' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-900/30 text-green-400 text-xs border border-green-800">
-                        <CheckCircle size={12} /> Sucesso
+                      <span style={{ padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(52, 168, 83, 0.2)', color: '#34A853', fontSize: '12px', border: '1px solid rgba(52, 168, 83, 0.3)' }}>
+                        ✅ Sucesso
                       </span>
                     )}
                     {log.status === 'REVERTED' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-900/30 text-orange-400 text-xs border border-orange-800">
-                        <RotateCcw size={12} /> Revertido
+                      <span style={{ padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(255, 152, 0, 0.2)', color: '#FF9800', fontSize: '12px', border: '1px solid rgba(255, 152, 0, 0.3)' }}>
+                        ↩️ Revertido
                       </span>
                     )}
                   </td>
-                  <td className="p-4 text-right">
+                  <td style={{ padding: '16px', textAlign: 'right' }}>
                     {log.status === 'SUCCESS' && (
                       <button
                         onClick={() => handleRevert(log.id)}
                         disabled={processingId === log.id}
-                        className={`
-                          flex items-center gap-2 ml-auto px-3 py-1.5 rounded text-sm font-medium transition-all
-                          ${processingId === log.id 
-                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
-                            : 'bg-red-900/20 text-red-400 hover:bg-red-900/40 border border-red-900'}
-                        `}
+                        style={{
+                          marginLeft: 'auto',
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 12px', borderRadius: '6px',
+                          backgroundColor: processingId === log.id ? '#444' : 'rgba(244, 67, 54, 0.1)',
+                          color: processingId === log.id ? '#aaa' : '#F44336',
+                          border: processingId === log.id ? '1px solid #444' : '1px solid rgba(244, 67, 54, 0.3)',
+                          cursor: processingId === log.id ? 'not-allowed' : 'pointer',
+                          fontSize: '13px', fontWeight: '500'
+                        }}
                       >
-                        {processingId === log.id ? (
-                          <> <Clock size={14} className="animate-spin"/> Processando </>
-                        ) : (
-                          <> <RotateCcw size={14} /> Desfazer </>
-                        )}
+                        {processingId === log.id ? '⏳ ...' : '↩️ Desfazer'}
                       </button>
                     )}
                   </td>
