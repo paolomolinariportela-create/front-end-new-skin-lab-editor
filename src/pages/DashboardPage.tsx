@@ -99,7 +99,10 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
       if (!command?.changes) return alert("Erro no formato do comando.");
       
       const c = command.changes[0];
-      const confirm = window.confirm(`🚀 Confirmar alteração real na Nuvemshop?\n\nAção: ${c.action}\nCampo: ${c.field}\nValor: ${c.value}`);
+      
+      // Tradução para o alerta de confirmação do navegador
+      const traducaoAcao = c.action === 'INCREASE_PERCENT' ? 'Aumentar %' : c.action === 'DECREASE_PERCENT' ? 'Desconto %' : 'Definir';
+      const confirm = window.confirm(`🚀 Confirmar alteração real na Nuvemshop?\n\nAção: ${traducaoAcao}\nCampo: ${c.field === 'price' ? 'Preço' : c.field}\nValor: ${c.value}`);
       
       if (!confirm) return;
 
@@ -155,16 +158,30 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
                                 display: 'inline-block', padding: '18px 24px', borderRadius: '24px', 
                                 backgroundColor: m.system ? '#282A2C' : (m.role === 'user' ? '#004A77' : 'transparent'), 
                                 color: '#E3E3E3', border: m.system ? '1px dashed #555' : 'none',
-                                maxWidth: '90%', textAlign: m.system ? 'center' : 'left', width: m.system ? '100%' : 'auto'
+                                maxWidth: '90%', textAlign: m.system ? 'center' : 'left', width: m.system ? '100%' : 'auto',
+                                whiteSpace: 'pre-wrap' // Importante para as quebras de linha do novo resumo
                             }}>
                                 <div style={{ marginBottom: m.command ? '15px' : '0' }}>{m.text}</div>
                                 
                                 {m.command && (
                                     <div style={{ backgroundColor: '#131314', border: '1px solid #444', borderRadius: '12px', padding: '20px', marginTop: '15px', textAlign: 'left' }}>
                                         <div style={{ fontSize: '14px', color: '#E3E3E3', marginBottom: '15px' }}>
-                                            <div style={{ color: activeTool?.color || '#A8C7FA', fontWeight: 'bold', marginBottom: '5px' }}>⚡ AÇÃO PROPOSTA</div>
-                                            <div>{m.command.changes[0].action} <b>{m.command.changes[0].field}</b></div>
-                                            <div>Valor: <span style={{ color: '#4CAF50' }}>{m.command.changes[0].value}</span></div>
+                                            <div style={{ color: activeTool?.color || '#A8C7FA', fontWeight: 'bold', marginBottom: '10px' }}>⚡ CONFIRMAÇÃO DE AÇÃO</div>
+                                            
+                                            <div style={{ backgroundColor: '#1e1f20', padding: '12px', borderRadius: '8px', borderLeft: `4px solid ${activeTool?.color || '#A8C7FA'}` }}>
+                                              <div style={{ marginBottom: '5px' }}>
+                                                <b>Ação:</b> {
+                                                  m.command.changes[0].action === 'INCREASE_PERCENT' ? 'Acrescentar %' :
+                                                  m.command.changes[0].action === 'DECREASE_PERCENT' ? 'Dar desconto %' :
+                                                  m.command.changes[0].action === 'SET' ? 'Definir Preço' : 'Ajustar Valor'
+                                                }
+                                              </div>
+                                              <div>
+                                                <b>Valor:</b> <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                                                  {m.command.changes[0].value}{m.command.changes[0].action.includes('PERCENT') ? '%' : ''}
+                                                </span>
+                                              </div>
+                                            </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <button onClick={() => executeCommand(m.command)} style={{ flex: 1, padding: '10px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ APROVAR</button>
