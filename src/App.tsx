@@ -6,12 +6,12 @@ import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import HistoryPage from './pages/HistoryPage';
 
-// URL do Backend (Mantive a que você enviou no snippet)
+// URL do Backend
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 export default function NewSkinApp() {
   // ==========================================
-  // 1. ESTADOS GLOBAIS (Apenas o essencial)
+  // 1. ESTADOS GLOBAIS
   // ==========================================
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [storeId, setStoreId] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export default function NewSkinApp() {
   const [storeStats, setStoreStats] = useState({ name: 'Carregando...', products: 0, categories: 0 });
 
   // ==========================================
-  // 2. LÓGICA DE INICIALIZAÇÃO E SYNC
+  // 2. LÓGICA DE INICIALIZAÇÃO E MONITORAMENTO
   // ==========================================
   
   // Captura o ID da Loja na URL
@@ -37,14 +37,15 @@ export default function NewSkinApp() {
     }
   }, []);
 
-  // Loop de verificação de Status (Mantém a barra lateral atualizada)
+  // Loop de verificação de Status (Apenas LEITURA, sem disparar ações)
   useEffect(() => {
-    if (!storeId || !isSyncing) return;
+    if (!storeId) return;
+    // Verifica a cada 5 segundos
     const interval = setInterval(() => checkStoreStatus(storeId), 5000);
     return () => clearInterval(interval);
-  }, [storeId, isSyncing]);
+  }, [storeId]);
 
-  // Função que busca dados da loja (Nome, contagem de produtos, status do sync)
+  // Função que busca dados da loja
   const checkStoreStatus = (id: string) => {
       fetch(`${BACKEND_URL}/admin/status/${id}`)
         .then(res => res.json())
@@ -55,31 +56,30 @@ export default function NewSkinApp() {
                 categories: data.total_categorias_banco || 0
             });
 
-            if (data.ultimo_erro === "SYNC_CONCLUIDO") {
-                if(isSyncing) {
-                   setSyncProgress(100);
-                   setIsSyncing(false); 
-                }
+            // Lógica visual da barra de progresso
+            if (data.total_produtos_banco > 0) {
+                 // Se já tem produtos, consideramos online/concluído
+                 setSyncProgress(100);
+                 setIsSyncing(false); 
             } else {
-                // Simula progresso se estiver rodando
-                setSyncProgress(old => old < 90 ? old + 10 : old);
-                // Força o sync se necessário
-                fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' }).catch(console.error);
+                 // Se ainda está vazio, mostra que está carregando visualmente
+                 setIsSyncing(true);
+                 setSyncProgress(old => old < 90 ? old + 5 : old);
             }
         })
         .catch(() => {
-            // Tenta disparar sync se falhar status
-            fetch(`${BACKEND_URL}/sync?store_id=${id}`, { method: 'POST' });
+            // Se der erro no status, apenas loga no console, NÃO tenta sincronizar de novo
+            console.log("Aguardando backend...");
         });
   };
 
   // ==========================================
-  // 3. RENDERIZAÇÃO LIMPA
+  // 3. RENDERIZAÇÃO
   // ==========================================
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
       
-      {/* MENU LATERAL (Componente Isolado) */}
+      {/* MENU LATERAL */}
       <Sidebar 
           storeStats={storeStats}
           isSyncing={isSyncing}
@@ -88,7 +88,7 @@ export default function NewSkinApp() {
           setActiveTab={setActiveTab}
       />
 
-      {/* ÁREA PRINCIPAL (Roteador de Páginas) */}
+      {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
         {/* Caso não tenha ID na URL */}
@@ -121,4 +121,4 @@ export default function NewSkinApp() {
       </main>
     </div>
   );
-} 
+}
