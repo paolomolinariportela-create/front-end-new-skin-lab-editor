@@ -28,7 +28,7 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
 
   const fetchHistory = async () => {
     try {
-      // Substituindo axios por fetch para manter padrão
+      // USANDO FETCH (Nativo) em vez de Axios
       const response = await fetch(`${API_URL}/history/${storeId}`);
       const data = await response.json();
       setLogs(data);
@@ -56,7 +56,7 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
     }
   };
 
-  if (loading) return <div className="p-10 text-white text-center">⏳ Carregando histórico...</div>;
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'white' }}>⏳ Carregando histórico...</div>;
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#131314', minHeight: '100%', color: '#E3E3E3', overflow: 'auto' }}>
