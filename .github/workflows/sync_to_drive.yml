@@ -1,0 +1,20 @@
+name: Sync to Google Drive
+on:
+  push:
+    branches:
+      - main  # Ou a sua branch principal
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Upload to Drive
+        uses: SATYAMNSH/google-drive-upload-git-action@v1.1
+        with:
+          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
+          filename: "meu_projeto.zip" # Ele vai subir o projeto zipado ou pasta
+          overwrite: "true"
