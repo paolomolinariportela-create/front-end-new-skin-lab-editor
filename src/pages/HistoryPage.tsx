@@ -14,6 +14,7 @@ interface HistoryLog {
 
 interface HistoryPageProps {
   storeId: string;
+  token: string; // <--- 🔒 NOVO: O Token é obrigatório para acessar o histórico
 }
 
 // === COMPONENTE DE MODAL (JANELINHA) ===
@@ -71,35 +72,69 @@ function DetailModal({ log, onClose }: { log: HistoryLog, onClose: () => void })
 }
 
 // === PÁGINA PRINCIPAL ===
-export default function HistoryPage({ storeId }: HistoryPageProps) {
+export default function HistoryPage({ storeId, token }: HistoryPageProps) {
   const [logs, setLogs] = useState<HistoryLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [selectedLog, setSelectedLog] = useState<HistoryLog | null>(null);
 
   useEffect(() => {
-    fetchHistory();
-  }, [storeId]);
+    if (token) {
+        fetchHistory();
+    }
+  }, [token]);
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/history/${storeId}`);
+      // 🔒 MUDANÇA CRÍTICA:
+      // Removemos o ID da URL e passamos o Token no Header
+      const response = await fetch(`${API_URL}/history`, {
+          method: 'GET',
+          headers: {
+              'Authorization': `Bearer ${token}` // <--- O CRACHÁ VIP
+          }
+      });
+      
+      if (response.status === 401) {
+          alert("Sessão expirada.");
+          return;
+      }
+
       const data = await response.json();
       setLogs(data);
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+    } catch (error) { 
+        console.error(error); 
+    } finally { 
+        setLoading(false); 
+    }
   };
 
   const handleRevert = async (logId: number) => {
     if (!window.confirm("⚠️ Atenção: Desfazer essa ação aplicará a lógica inversa (ex: se aumentou, vai diminuir). Continuar?")) return;
     setProcessingId(logId);
+    
     try {
-      await fetch(`${API_URL}/history/revert/${logId}`, { method: 'POST' });
-      alert("Reversão iniciada! Aguarde alguns segundos.");
-      setTimeout(fetchHistory, 2000);
-    } catch (error) { alert("Erro ao tentar reverter."); } finally { setProcessingId(null); }
+      const response = await fetch(`${API_URL}/history/revert/${logId}`, { 
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}` // <--- SEGURANÇA NA REVERSÃO
+          }
+      });
+      
+      if (response.ok) {
+          alert("Reversão iniciada! Aguarde alguns segundos.");
+          setTimeout(fetchHistory, 2000);
+      } else {
+          throw new Error("Falha na reversão");
+      }
+    } catch (error) { 
+        alert("Erro ao tentar reverter. Verifique sua permissão."); 
+    } finally { 
+        setProcessingId(null); 
+    }
   };
 
-  // Funções Auxiliares de Formatação
+  // Funções Auxiliares de Formatação (Mantidas iguais)
   const getCardInfo = (jsonCmd: string) => {
     try {
         const cmd = JSON.parse(jsonCmd);
@@ -173,13 +208,13 @@ export default function HistoryPage({ storeId }: HistoryPageProps) {
 
                   {/* DESCRIÇÃO DA AÇÃO */}
                   <td style={{ padding: '16px' }}>
-                     {formatAction(log.full_command)}
+                      {formatAction(log.full_command)}
                   </td>
 
                   {/* AFETADOS */}
                   <td style={{ padding: '16px', textAlign: 'center' }}>
-                     <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'white' }}>{log.affected_count}</div>
-                     <div style={{ fontSize: '10px', color: '#666' }}>PRODUTOS</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'white' }}>{log.affected_count}</div>
+                      <div style={{ fontSize: '10px', color: '#666' }}>PRODUTOS</div>
                   </td>
 
                   {/* STATUS */}
