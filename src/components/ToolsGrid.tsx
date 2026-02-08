@@ -2,14 +2,14 @@ import React from 'react';
 
 // Dados das ferramentas (estáticos)
 const hextomCards = [
-    { title: "Inventory", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
-    { title: "Price", desc: "Update prices", color: "#4CAF50", icon: "💲" },
-    { title: "Compare At", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
+    { title: "Estoque", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
+    { title: "Preço", desc: "Update prices", color: "#4CAF50", icon: "💲" },
+    { title: "Preço Promocional", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
     { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
-    { title: "Title", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
-    { title: "Description", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
+    { title: "Títulos", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
+    { title: "Descrição", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
     { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
-    { title: "Vendor", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
+    { title: "Marcas", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
 ];
 
 interface ToolsGridProps {
