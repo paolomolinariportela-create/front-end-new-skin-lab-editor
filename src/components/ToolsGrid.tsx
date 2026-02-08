@@ -4,7 +4,7 @@ import React from 'react';
 const hextomCards = [
     { title: "Estoque", desc: "Shipping & Stock", color: "#00BCD4", icon: "📦" }, 
     { title: "Preço", desc: "Update prices", color: "#4CAF50", icon: "💲" },
-    { title: "Preço Promocional", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
+    { title: "Promocional", desc: "Sales price", color: "#FF9800", icon: "⚖️" }, 
     { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
     { title: "Títulos", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
     { title: "Descrição", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
