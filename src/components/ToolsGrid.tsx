@@ -8,7 +8,7 @@ const hextomCards = [
     { title: "Tag", desc: "Manage tags", color: "#009688", icon: "🏷️" }, 
     { title: "Títulos", desc: "SEO & Names", color: "#673AB7", icon: "📝" }, 
     { title: "Descrição", desc: "HTML Content", color: "#9E9E9E", icon: "📄" }, 
-    { title: "Product Type", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
+    { title: "Variações", desc: "Categories", color: "#F44336", icon: "🗂️" }, 
     { title: "Marcas", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
     { title: "Status", desc: "status", color: "#FF5722", icon: "🏭" },
 ];
