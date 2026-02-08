@@ -1,36 +1,60 @@
 import React, { useState, useEffect } from 'react';
 
-// Ajuste a URL se necessário, ou crie um arquivo de config depois
+// Ajuste a URL se necessário
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 interface ProductsPageProps {
-  storeId: string | null;
+  storeId: string;
+  token: string; // <--- 🔒 NOVO: O Token é obrigatório agora
 }
 
-export default function ProductsPage({ storeId }: ProductsPageProps) {
+export default function ProductsPage({ storeId, token }: ProductsPageProps) {
   const [productsList, setProductsList] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Busca inicial
+  // Busca inicial assim que tivermos o Token
   useEffect(() => {
-    if (storeId) {
-        fetchProducts(storeId);
+    if (token) {
+        fetchProducts();
     }
-  }, [storeId]);
+  }, [token]);
 
-  const fetchProducts = async (id: string, search = "") => {
+  const fetchProducts = async (search = "") => {
       setLoadingProducts(true);
       try {
-          let url = `${BACKEND_URL}/products/${id}?limit=100`;
+          // 🔒 MUDANÇA CRÍTICA NA URL:
+          // Antes: /products/${storeId}
+          // Agora: /products (O ID está escondido dentro do Token)
+          let url = `${BACKEND_URL}/products?limit=100`;
+          
           if (search) url += `&search=${search}`;
           
-          const res = await fetch(url);
+          const res = await fetch(url, {
+              method: 'GET',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}` // <--- O CRACHÁ VIP
+              }
+          });
+
+          if (res.status === 401) {
+              alert("Sessão expirada. Recarregue a página.");
+              return;
+          }
+
           const data = await res.json();
-          setProductsList(data);
+          // O backend retorna { data: [], total: 0 } ou lista direta dependendo da paginação
+          // Se sua API retornar paginado, ajuste aqui. Assumindo lista direta pelo código anterior:
+          if (Array.isArray(data)) {
+            setProductsList(data);
+          } else if (data.data && Array.isArray(data.data)) {
+            setProductsList(data.data);
+          }
+          
       } catch (error) { 
           console.error(error); 
-          alert("Erro ao buscar produtos.");
+          alert("Erro ao buscar produtos. Verifique a conexão.");
       } finally { 
           setLoadingProducts(false); 
       }
@@ -42,9 +66,17 @@ export default function ProductsPage({ storeId }: ProductsPageProps) {
   };
 
   const renderVariants = (product: any) => {
+      // Parse seguro do JSON se vier como string do banco
+      let variants = [];
+      try {
+        variants = typeof product.variants_json === 'string' 
+            ? JSON.parse(product.variants_json) 
+            : product.variants_json || [];
+      } catch (e) { variants = []; }
+
       return (
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
-              {product.variants_json?.map((v: any, i: number) => {
+              {variants.map((v: any, i: number) => {
                   const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
                   return (
                       <div key={i} 
@@ -68,10 +100,11 @@ export default function ProductsPage({ storeId }: ProductsPageProps) {
                     placeholder="🔍 Buscar..." 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)} 
+                    onKeyPress={(e) => e.key === 'Enter' && fetchProducts(searchTerm)}
                     style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} 
                 />
                 <button 
-                    onClick={() => storeId && fetchProducts(storeId, searchTerm)} 
+                    onClick={() => fetchProducts(searchTerm)} 
                     style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}
                 >
                     Filtrar
@@ -96,17 +129,28 @@ export default function ProductsPage({ storeId }: ProductsPageProps) {
                     {loadingProducts ? (
                         <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
                     ) : (
-                        productsList.map((p) => (
-                            <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
-                                <td style={{ padding: '10px' }}><img src={p.image_url} alt="" style={{ width: '35px', borderRadius: '4px' }} /></td>
-                                <td style={{ padding: '0' }}><input value={p.name} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
-                                <td style={{ padding: '0' }}><input value={p.sku} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
-                                <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
-                                <td style={{ padding: '0' }}><input type="number" value={p.price} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
-                                <td style={{ padding: '0' }}><input type="number" value={p.stock} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
-                                <td style={{ padding: '0' }}><input value={p.description?.substring(0,50)} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
-                            </tr>
-                        ))
+                        productsList.map((p) => {
+                            // Parse das imagens para exibir a primeira
+                            let imgUrl = "";
+                            try {
+                                const imgs = typeof p.images_json === 'string' ? JSON.parse(p.images_json) : p.images_json;
+                                if (imgs && imgs.length > 0) imgUrl = imgs[0].src;
+                            } catch(e) {}
+
+                            return (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
+                                    <td style={{ padding: '10px' }}>
+                                        {imgUrl && <img src={imgUrl} alt="" style={{ width: '35px', borderRadius: '4px' }} />}
+                                    </td>
+                                    <td style={{ padding: '0' }}><input value={p.name || ''} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input value={p.handle || ''} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
+                                    <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.price || 0} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.stock || 0} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input value={p.description_text?.substring(0,50) || ''} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
+                                </tr>
+                            );
+                        })
                     )}
                 </tbody>
             </table>
