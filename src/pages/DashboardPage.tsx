@@ -6,9 +6,10 @@ const BACKEND_URL = "https://web-production-4b8a.up.railway.app";
 
 interface DashboardPageProps {
   storeId: string;
+  token: string; // <--- 🔒 NOVO: Precisamos receber o Token aqui
 }
 
-export default function DashboardPage({ storeId }: DashboardPageProps) {
+export default function DashboardPage({ storeId, token }: DashboardPageProps) {
   // Estados do Chat
   const [messages, setMessages] = useState<any[]>([
     { role: 'ai', text: 'Olá! Sou a IA do NewSkin. Posso te ajudar a consultar ou editar seu estoque.' }
@@ -26,12 +27,19 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
 
   // --- FUNÇÃO DE SINCRONIZAÇÃO MANUAL ---
   const handleSyncManual = async () => {
-    if (!storeId) return;
+    // 🔒 SEGURANÇA: Não precisamos mais mandar ID na URL, mandamos o Token
     setIsLoading(true);
     setMessages(prev => [...prev, { role: 'ai', text: '⏳ Iniciando sincronização completa... Buscando produtos na Nuvemshop.' }]);
     
     try {
-        const res = await fetch(`${BACKEND_URL}/sync?store_id=${storeId}`, { method: 'POST' });
+        // Mudança aqui: Removemos ?store_id=... e adicionamos o Header Authorization
+        const res = await fetch(`${BACKEND_URL}/sync`, { 
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}` // <--- O CRACHÁ VIP
+            }
+        });
+
         const data = await res.json();
         if (res.ok) {
             setMessages(prev => [...prev, { role: 'ai', text: `✅ Sincronização concluída com sucesso! O catálogo foi atualizado.` }]);
@@ -39,7 +47,7 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
             throw new Error();
         }
     } catch (err) {
-        setMessages(prev => [...prev, { role: 'ai', text: '❌ Erro ao sincronizar. Verifique se o servidor está online.' }]);
+        setMessages(prev => [...prev, { role: 'ai', text: '❌ Erro ao sincronizar. Verifique se o servidor está online ou se seu login expirou.' }]);
     } finally {
         setIsLoading(false);
     }
@@ -62,7 +70,7 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
 
   // --- ENVIO DO CHAT ---
   const handleSend = async (text: string) => {
-    if (!text || !storeId) return;
+    if (!text) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setIsLoading(true);
@@ -70,13 +78,21 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
     try {
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // <--- 🔒 SEGURANÇA NO CHAT
+        },
         body: JSON.stringify({ 
             message: text, 
-            store_id: storeId,
+            store_id: storeId, // Mantemos por compatibilidade, mas o Backend confia no Token
             context: activeTool ? activeTool.title.toLowerCase() : 'dashboard'
         }) 
       });
+      
+      if (response.status === 401) {
+          setMessages(prev => [...prev, { role: 'ai', text: '🔒 Sessão expirada. Por favor, recarregue a página.' }]);
+          return;
+      }
       
       if (!response.ok) throw new Error();
       
@@ -111,7 +127,10 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
       try {
           const res = await fetch(`${BACKEND_URL}/apply-changes`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}` // <--- 🔒 SEGURANÇA NA AÇÃO
+              },
               body: JSON.stringify({ store_id: storeId, command: command })
           });
 
@@ -159,7 +178,7 @@ export default function DashboardPage({ storeId }: DashboardPageProps) {
                                 backgroundColor: m.system ? '#282A2C' : (m.role === 'user' ? '#004A77' : 'transparent'), 
                                 color: '#E3E3E3', border: m.system ? '1px dashed #555' : 'none',
                                 maxWidth: '90%', textAlign: m.system ? 'center' : 'left', width: m.system ? '100%' : 'auto',
-                                whiteSpace: 'pre-wrap' // Importante para as quebras de linha do novo resumo
+                                whiteSpace: 'pre-wrap'
                             }}>
                                 <div style={{ marginBottom: m.command ? '15px' : '0' }}>{m.text}</div>
                                 
