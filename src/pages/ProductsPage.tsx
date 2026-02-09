@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+// Ajuste a URL se necessário
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
 
 interface ProductsPageProps {
   storeId: string;
-  token: string;
+  token: string; // <--- 🔒 NOVO: O Token é obrigatório agora
 }
 
 export default function ProductsPage({ storeId, token }: ProductsPageProps) {
@@ -12,124 +13,147 @@ export default function ProductsPage({ storeId, token }: ProductsPageProps) {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Busca inicial assim que tivermos o Token
   useEffect(() => {
-    if (token) fetchProducts();
+    if (token) {
+        fetchProducts();
+    }
   }, [token]);
 
   const fetchProducts = async (search = "") => {
       setLoadingProducts(true);
       try {
+          // 🔒 MUDANÇA CRÍTICA NA URL:
+          // Antes: /products/${storeId}
+          // Agora: /products (O ID está escondido dentro do Token)
           let url = `${BACKEND_URL}/products?limit=100`;
+          
           if (search) url += `&search=${search}`;
           
           const res = await fetch(url, {
               method: 'GET',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${token}` // <--- O CRACHÁ VIP
               }
           });
 
-          if (res.ok) {
-              const data = await res.json();
-              setProductsList(data);
+          if (res.status === 401) {
+              alert("Sessão expirada. Recarregue a página.");
+              return;
           }
-      } catch (error) {
-          console.error("Erro ao buscar produtos:", error);
-      } finally {
-          setLoadingProducts(false);
+
+          const data = await res.json();
+          // O backend retorna { data: [], total: 0 } ou lista direta dependendo da paginação
+          // Se sua API retornar paginado, ajuste aqui. Assumindo lista direta pelo código anterior:
+          if (Array.isArray(data)) {
+            setProductsList(data);
+          } else if (data.data && Array.isArray(data.data)) {
+            setProductsList(data.data);
+          }
+          
+      } catch (error) { 
+          console.error(error); 
+          alert("Erro ao buscar produtos. Verifique a conexão.");
+      } finally { 
+          setLoadingProducts(false); 
       }
   };
 
-  const handleInputChange = (id: string, field: string, value: string) => {
-      setProductsList(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  const handleInputChange = (id: string, field: string, value: any) => {
+      // Edição visual apenas (para salvar precisa do botão salvar futuramente)
+      setProductsList(prevList => prevList.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
-  // Renderiza variações como etiquetas bonitas
   const renderVariants = (product: any) => {
-      const vars = product.variants || [];
-      if (vars.length === 0) return <span style={{ color: '#555', fontSize: '12px' }}>Sem variações</span>;
-      
-      const values = [...new Set(vars.flatMap((v: any) => v.values.map((val: any) => val.pt)))];
+      // Parse seguro do JSON se vier como string do banco
+      let variants = [];
+      try {
+        variants = typeof product.variants_json === 'string' 
+            ? JSON.parse(product.variants_json) 
+            : product.variants_json || [];
+      } catch (e) { variants = []; }
+
       return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {values.slice(0, 4).map((v: any, idx: number) => (
-                  <span key={idx} style={{ backgroundColor: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', color: '#ccc' }}>
-                      {v}
-                  </span>
-              ))}
-              {values.length > 4 && <span style={{ fontSize: '10px', color: '#888' }}>+{values.length - 4}</span>}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px', paddingBottom: '5px', whiteSpace: 'nowrap' }}>
+              {variants.map((v: any, i: number) => {
+                  const name = v.values ? v.values.map((val:any) => val.pt).join('/') : 'Único';
+                  return (
+                      <div key={i} 
+                        style={{ fontSize: '10px', background: '#333', padding: '4px 6px', borderRadius: '4px', color: '#E3E3E3', border: '1px solid #444', minWidth: '60px', textAlign: 'center' }}
+                        title="Variante">
+                          <div style={{ fontWeight: 'bold' }}>{name}</div>
+                          <div style={{ color: '#34A853' }}>R$ {v.price || product.price}</div>
+                      </div>
+                  );
+              })}
           </div>
       );
   };
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto', color: '#E3E3E3', fontFamily: 'sans-serif' }}>
-        
-        {/* HEADER E BUSCA */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', backgroundColor: '#131314' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h1 style={{ margin: 0, fontSize: '24px' }}>📦 Catálogo de Produtos</h1>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>Catálogo</h1>
             <div style={{ display: 'flex', gap: '10px' }}>
                 <input 
-                    type="text" 
-                    placeholder="Buscar por nome ou SKU..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ padding: '10px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#1E1F20', color: 'white', width: '300px' }}
+                    placeholder="🔍 Buscar..." 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    onKeyPress={(e) => e.key === 'Enter' && fetchProducts(searchTerm)}
+                    style={{ padding: '8px 12px', borderRadius: '6px', background: '#282A2C', border: '1px solid #444746', color: 'white' }} 
                 />
-                <button onClick={() => fetchProducts(searchTerm)} style={{ padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                    🔍 Buscar
+                <button 
+                    onClick={() => fetchProducts(searchTerm)} 
+                    style={{ padding: '0 15px', borderRadius: '6px', background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}
+                >
+                    Filtrar
                 </button>
             </div>
         </div>
+        
+        <div style={{ flex: 1, overflow: 'auto', background: '#1E1F20', borderRadius: '12px', border: '1px solid #444746' }}>
+            <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#282A2C', zIndex: 5 }}>
+                    <tr>
+                        <th style={{ padding: '12px', color: '#aaa' }}>IMG</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>NOME</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>SKU</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>VARIANTES</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>PREÇO</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>ESTOQUE</th>
+                        <th style={{ padding: '12px', color: '#aaa' }}>DESCRIÇÃO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {loadingProducts ? (
+                        <tr><td colSpan={7} style={{textAlign: 'center', padding: '20px', color: '#888'}}>Carregando catálogo...</td></tr>
+                    ) : (
+                        productsList.map((p) => {
+                            // Parse das imagens para exibir a primeira
+                            let imgUrl = "";
+                            try {
+                                const imgs = typeof p.images_json === 'string' ? JSON.parse(p.images_json) : p.images_json;
+                                if (imgs && imgs.length > 0) imgUrl = imgs[0].src;
+                            } catch(e) {}
 
-        {/* TABELA DE DADOS */}
-        <div style={{ backgroundColor: '#1E1F20', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden' }}>
-            {loadingProducts ? (
-                <div style={{ padding: '50px', textAlign: 'center', color: '#888' }}>Carregando inventário...</div>
-            ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                            <tr style={{ backgroundColor: '#282A2C', color: '#aaa', textAlign: 'left' }}>
-                                <th style={{ padding: '12px' }}>IMG</th>
-                                <th style={{ padding: '12px' }}>Produto</th>
-                                <th style={{ padding: '12px' }}>SKU</th>
-                                <th style={{ padding: '12px' }}>Variações</th>
-                                <th style={{ padding: '12px' }}>Preço (R$)</th>
-                                <th style={{ padding: '12px' }}>Estoque</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {productsList.map(p => (
-                                <tr key={p.id} style={{ borderBottom: '1px solid #333', transition: 'background 0.1s' }}>
+                            return (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #282A2C' }}>
                                     <td style={{ padding: '10px' }}>
-                                        {p.images && p.images[0] ? (
-                                            <img src={p.images[0].src} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
-                                        ) : (
-                                            <div style={{ width: '40px', height: '40px', backgroundColor: '#333', borderRadius: '4px' }} />
-                                        )}
+                                        {imgUrl && <img src={imgUrl} alt="" style={{ width: '35px', borderRadius: '4px' }} />}
                                     </td>
-                                    <td style={{ padding: '10px', fontWeight: 'bold' }}>{p.name.pt}</td>
-                                    <td style={{ padding: '10px', color: '#888' }}>{p.handle || '-'}</td>
+                                    <td style={{ padding: '0' }}><input value={p.name || ''} onChange={(e) => handleInputChange(p.id, 'name', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#E3E3E3', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input value={p.handle || ''} onChange={(e) => handleInputChange(p.id, 'sku', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#888', padding: '12px' }}/></td>
                                     <td style={{ padding: '10px' }}>{renderVariants(p)}</td>
-                                    <td style={{ padding: '10px', color: '#4CAF50', fontWeight: 'bold' }}>
-                                        {/* Input editável simples para demo */}
-                                        <input 
-                                            value={p.price || 0} 
-                                            onChange={(e) => handleInputChange(p.id, 'price', e.target.value)}
-                                            style={{ width: '80px', background: 'transparent', border: 'none', color: '#4CAF50', fontWeight: 'bold' }}
-                                        />
-                                    </td>
-                                    <td style={{ padding: '10px', color: p.stock === 0 ? '#F44336' : '#A8C7FA' }}>
-                                        {p.stock || 0}
-                                    </td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.price || 0} onChange={(e) => handleInputChange(p.id, 'price', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#34A853', fontWeight: 'bold', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input type="number" value={p.stock || 0} onChange={(e) => handleInputChange(p.id, 'stock', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#A8C7FA', padding: '12px' }}/></td>
+                                    <td style={{ padding: '0' }}><input value={p.description_text?.substring(0,50) || ''} onChange={(e) => handleInputChange(p.id, 'description', e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#666', padding: '12px' }}/></td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                            );
+                        })
+                    )}
+                </tbody>
+            </table>
         </div>
     </div>
   );
