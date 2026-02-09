@@ -14,6 +14,7 @@ const hextomCards = [
     { title: "Codigos", desc: "Codigos", color: "#FF9800", icon: "⚖️" },
     { title: "Logistica", desc: "Logistica", color: "#9E9E9E", icon: "📄" },
     { title: "Google", desc: "Google", color: "#F44336", icon: "🗂️" }, 
+    { title: "Relacionados", desc: "Relacionados", color: "#FF9800", icon: "⚖️" },
 ];
 
 interface ToolsGridProps {
