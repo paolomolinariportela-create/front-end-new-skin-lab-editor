@@ -12,7 +12,7 @@ const hextomCards = [
     { title: "Marcas", desc: "Brands", color: "#FF5722", icon: "🏭" }, 
     { title: "Status", desc: "status", color: "#FF5722", icon: "🏭" },
     { title: "Codigos", desc: "Codigos", color: "#FF9800", icon: "⚖️" },
-    { title: "Peso e Tamanhos", desc: "Peso e Tamanhos", color: "#9E9E9E", icon: "📄" },
+    { title: "Logistica", desc: "Logistica", color: "#9E9E9E", icon: "📄" },
 ];
 
 interface ToolsGridProps {
