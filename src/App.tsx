@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import HistoryPage from './pages/HistoryPage';
+import LoginPage from './LoginPage'; // <--- 1. IMPORTAÇÃO DA NOVA TELA DE LOGIN
 
 // URL do Backend
 const BACKEND_URL = "https://web-production-4b8a.up.railway.app"; 
@@ -15,7 +16,7 @@ export default function NewSkinApp() {
   // ==========================================
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [storeId, setStoreId] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null); // <--- NOVO: Estado do Token
+  const [token, setToken] = useState<string | null>(null);
   
   // Dados para a Sidebar (Status da Loja)
   const [isSyncing, setIsSyncing] = useState(true);
@@ -29,22 +30,34 @@ export default function NewSkinApp() {
   
   useEffect(() => {
     const initApp = async () => {
-      // Tenta pegar o ID da URL
+      // Tenta pegar o ID da URL (caso venha de um redirecionamento antigo)
       const params = new URLSearchParams(window.location.search);
       const urlStoreId = params.get('store_id');
+      const urlToken = params.get('token'); // Se vier do callback da Nuvemshop
       
-      // Tenta pegar um token que já esteja salvo (para não precisar logar toda vez)
+      // Tenta pegar um token que já esteja salvo
       const savedToken = localStorage.getItem('newskin_token');
+      const savedStoreId = localStorage.getItem('newskin_store_id');
 
-      if (urlStoreId) {
-        // Se tem ID na URL, fazemos o LOGIN para pegar o Token
-        handleLogin(urlStoreId);
-      } else if (savedToken) {
-        // Se já tem token salvo, usamos ele direto
+      if (urlToken && urlStoreId) {
+          // Caso 1: Redirecionamento Pós-Login Nuvemshop (Callback)
+          handleLoginSuccess(urlToken, urlStoreId);
+          // Limpa a URL para segurança
+          window.history.replaceState({}, document.title, "/");
+      } 
+      else if (savedToken && savedStoreId) {
+        // Caso 2: Sessão Restaurada
         setToken(savedToken);
-        // Opcional: Decodificar o token para pegar o ID, mas o backend vai confirmar depois
+        setStoreId(savedStoreId);
         setIsSyncing(true); 
-      } else {
+      } 
+      else if (urlStoreId) {
+        // Caso 3: URL antiga apenas com ID (Tenta login manual no background, raro)
+        // Melhor deixar cair no LoginPage para segurança
+        setIsSyncing(false);
+      } 
+      else {
+        // Caso 4: Usuário novo -> Vai para LoginPage
         setIsSyncing(false);
       }
     };
@@ -52,34 +65,24 @@ export default function NewSkinApp() {
     initApp();
   }, []);
 
-  // Função de Login (Troca ID por Token)
-  const handleLogin = async (id: string) => {
-    try {
-      console.log("🔐 Tentando autenticar loja:", id);
-      const res = await fetch(`${BACKEND_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ store_id: id })
-      });
+  // Função Centralizada de Sucesso no Login
+  const handleLoginSuccess = (newToken: string, newStoreId: string) => {
+      setToken(newToken);
+      setStoreId(newStoreId);
+      localStorage.setItem('newskin_token', newToken);
+      localStorage.setItem('newskin_store_id', newStoreId);
+      console.log("✅ Autenticado com sucesso!");
+      setAuthError(null);
+  };
 
-      const data = await res.json();
-
-      if (res.ok && data.access_token) {
-        // Sucesso!
-        setToken(data.access_token);
-        setStoreId(id);
-        localStorage.setItem('newskin_token', data.access_token); // Salva no navegador
-        console.log("✅ Login realizado com sucesso!");
-        
-        // Limpa a URL para ninguém ver o ID (Opcional, mas seguro)
-        window.history.replaceState({}, document.title, "/");
-      } else {
-        setAuthError("Falha no login: Loja não autorizada.");
-      }
-    } catch (error) {
-      console.error("Erro no login:", error);
-      setAuthError("Erro de conexão com o servidor.");
-    }
+  const handleLogout = () => {
+      setToken(null);
+      setStoreId(null);
+      localStorage.removeItem('newskin_token');
+      localStorage.removeItem('newskin_store_id');
+      setAuthError(null);
+      // Redireciona para home limpa
+      window.history.replaceState({}, document.title, "/");
   };
 
   // ==========================================
@@ -92,8 +95,6 @@ export default function NewSkinApp() {
 
     // Função de checagem
     const checkStatus = () => {
-      // NOTA: A rota mudou. Antes era /admin/status/{id}, agora é só /admin/status
-      // O ID vai escondido dentro do cabeçalho Authorization
       fetch(`${BACKEND_URL}/admin/status`, {
         method: 'GET',
         headers: {
@@ -115,9 +116,10 @@ export default function NewSkinApp() {
         setStoreStats({
             name: data.loja_nome || 'Minha Loja',
             products: data.total_produtos_banco || 0,
-            categories: data.total_categorias_banco || 0
+            categories: data.total_categorias_banco || 0 // Ajuste se seu backend retornar outro campo
         });
 
+        // Lógica de progresso visual
         if (data.total_produtos_banco > 0) {
              setSyncProgress(100);
              setIsSyncing(false); 
@@ -138,27 +140,16 @@ export default function NewSkinApp() {
 
   }, [token]);
 
-  const handleLogout = () => {
-      setToken(null);
-      setStoreId(null);
-      localStorage.removeItem('newskin_token');
-      setAuthError(null);
-  };
-
   // ==========================================
   // 4. RENDERIZAÇÃO
   // ==========================================
   
-  // Se houver erro de login, mostra tela de erro
-  if (authError) {
-      return (
-        <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#131314', color: '#fff', flexDirection: 'column' }}>
-            <h2>🚫 Acesso Negado</h2>
-            <p>{authError}</p>
-            <button onClick={() => window.location.reload()} style={{ marginTop: 20, padding: '10px 20px', cursor: 'pointer' }}>Tentar Novamente</button>
-        </div>
-      );
+  // Se não tem token, mostra a NOVA TELA DE LOGIN
+  if (!token) {
+      return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
+
+  // Se houver erro crítico de auth (token inválido), o useEffect acima já desloga.
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", backgroundColor: '#131314', color: '#E3E3E3', overflow: 'hidden' }}>
@@ -170,34 +161,24 @@ export default function NewSkinApp() {
           syncProgress={syncProgress}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          onLogout={handleLogout} // Passamos a função de logout para o sidebar (se ele tiver botão)
       />
 
       {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100vh', overflow: 'hidden' }}>
         
-        {/* Caso não tenha Token nem ID */}
-        {!token && !storeId && (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>
-                <h3>🔐 Aguardando Autenticação...</h3>
-                <p>Se nada acontecer, adicione <code>?store_id=SEU_ID</code> na URL.</p>
-            </div>
+        {/* Renderiza a página baseada na aba ativa - PASSANDO O TOKEN */}
+        
+        {activeTab === 'dashboard' && (
+            <DashboardPage storeId={storeId || ''} token={token} />
         )}
-
-        {/* Renderiza a página baseada na aba ativa - AGORA PASSANDO O TOKEN */}
-        {token && (
-            <>
-                {activeTab === 'dashboard' && (
-                    <DashboardPage storeId={storeId || ''} token={token} />
-                )}
-                
-                {activeTab === 'products' && (
-                    <ProductsPage storeId={storeId || ''} token={token} />
-                )}
-                
-                {activeTab === 'history' && (
-                    <HistoryPage storeId={storeId || ''} token={token} />
-                )}
-            </>
+        
+        {activeTab === 'products' && (
+            <ProductsPage storeId={storeId || ''} token={token} />
+        )}
+        
+        {activeTab === 'history' && (
+            <HistoryPage storeId={storeId || ''} token={token} />
         )}
 
       </main>
